@@ -1,0 +1,17 @@
+var foo = 50 / 2;
+
+const test = {
+    x: 100,
+    y: 32,
+    foo,
+    complex: {
+        bar: true
+    }
+};
+
+print(test);
+
+var f = test.complex.bar;
+
+print(test.y + f);
+print(test.x + test.y);
