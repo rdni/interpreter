@@ -81,11 +81,20 @@ pub fn eval_assignment(node: AssignmentExpr, env: &mut Environment) -> Box<dyn R
         NodeType::MemberExpr => {
             let member_expr = node.assignee.as_any().downcast_ref::<MemberExpr>().expect("Failed to downcast to MemberExpr.").clone();
             let object_identifier = member_expr.object.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone();
-            let property_identifer = member_expr.property.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone();
+            let property;
+
+            if member_expr.property.get_kind() == NodeType::Identifier {
+                property = member_expr.property.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone().symbol;
+            } else if member_expr.property.get_kind() == NodeType::String {
+                property = eval(member_expr.property.to_stmt_from_expr(), env).as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StrinvValue.").clone().value;
+            } else {
+                fatal_error("Unexpected value in member assignment expr");
+            }
+
             let mut obj = env.lookup_var(object_identifier.symbol.clone()).as_any().downcast_ref::<ObjectValue>().expect("Failed to downcast to ObjectValue.").clone();
             let value = eval(node.value.to_stmt_from_expr(), env);
 
-            obj.properties.insert(property_identifer.symbol, value);
+            obj.properties.insert(property, value);
             env.assign_var(object_identifier.symbol, Box::new(obj))
         },
         _ => {
