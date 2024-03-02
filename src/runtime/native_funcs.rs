@@ -2,7 +2,7 @@ use crate::runtime::values::NullValue;
 
 use super::{environment::Environment, values::RuntimeValue};
 
-pub fn native_print(args: Vec<Box<dyn RuntimeValue>>, env: &mut Environment) -> Box<dyn RuntimeValue> {
+pub fn native_print(args: Vec<Box<dyn RuntimeValue>>, _env: &mut Environment) -> Box<dyn RuntimeValue> {
     let mut to_print = String::new();
 
     for arg in args {

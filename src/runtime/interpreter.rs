@@ -1,5 +1,3 @@
-use std::clone;
-
 use crate::fatal_error;
 use crate::runtime::values::{NumberValue, RuntimeValue};
 use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, Identifier, MemberExpr, NodeType, ObjectLiteral, Program, Stmt, StmtValue, StmtWrapper, VarDeclaration};
