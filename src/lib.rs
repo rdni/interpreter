@@ -32,7 +32,7 @@ fn fatal_error(information: &str) -> ! {
 }
 
 fn is_skippable(src: char) -> bool {
-    src == ' ' || src == '\n' || src == '\t'
+    src == ' ' || src == '\n' || src == '\t' || src == '\r'
 }
 
 fn pad_each_line(amount: usize, string: String) -> String {
