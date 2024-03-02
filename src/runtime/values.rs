@@ -1,4 +1,4 @@
-use std::{any::Any, collections::HashMap, fmt::Debug, rc::Rc};
+use std::{any::Any, collections::HashMap, fmt::{Debug, Display}, rc::Rc};
 
 use crate::pad_each_line;
 
@@ -8,9 +8,25 @@ use super::environment::Environment;
 pub enum ValueType {
     Null,
     Number,
+    String,
     Boolean,
     Object,
     NativeFn
+}
+
+impl Display for ValueType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Boolean => write!(f, "bool"),
+            Self::NativeFn => write!(f, "native_func"),
+            Self::Null => write!(f, "null"),
+            Self::Number => write!(f, "number"),
+            Self::Object => write!(f, "object"),
+            Self::String => write!(f, "string")
+        }?;
+
+        Ok(())
+    }
 }
 
 pub trait RuntimeValue: Debug + Any + 'static {
@@ -159,5 +175,25 @@ impl RuntimeValue for NativeFnValue {
     }
     fn to_string(&self) -> String {
         String::from("NativeFn")
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StringValue {
+    pub value: String
+}
+
+impl RuntimeValue for StringValue {
+    fn get_type(&self) -> ValueType {
+        ValueType::String
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_self(&self) -> Box<dyn RuntimeValue> {
+        Box::new(self.clone())
+    }
+    fn to_string(&self) -> String {
+        self.value.clone()
     }
 }

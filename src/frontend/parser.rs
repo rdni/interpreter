@@ -4,7 +4,7 @@ use crate::frontend::ast::{
 use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
 
-use super::ast::MemberExpr;
+use super::ast::{MemberExpr, StringLiteral};
 
 pub struct Parser {
     pub tokens: Vec<Token>
@@ -175,6 +175,7 @@ impl Parser {
         match token.get_token_type() {
             TokenType::Identifier => ExprWrapper::new(Box::new(Identifier { kind: NodeType::Identifier, symbol: self.eat().value.unwrap() })),
             TokenType::Number => ExprWrapper::new(Box::new(NumericLiteral { kind: NodeType::NumericLiteral, value: self.eat().value.unwrap().parse().expect("Problem converting numeric literal") })),
+            TokenType::String => ExprWrapper::new(Box::new(StringLiteral { kind: NodeType::String, string: self.eat().value.unwrap()})),
             TokenType::OpenParen => {
                 self.eat();
                 let value = self.parse_expr();
@@ -285,11 +286,12 @@ impl Parser {
                 property = self.parse_primary_expr();
                 computed = false;
             } 
-            // else if self.at().get_token_type() == TokenType::OpenBracket {
-            //     self.eat();
-            //     property = self.parse_primary_expr();
-            //     computed = true;
-            // }
+            else if self.at().get_token_type() == TokenType::OpenBracket {
+                self.eat();
+                property = self.parse_primary_expr();
+                computed = true;
+                self.eat();
+            }
             else {
                 return object;
             }
@@ -301,14 +303,25 @@ impl Parser {
                 computed
             }));
 
-            while self.at().get_token_type() == TokenType::Dot {
-                self.eat();
-                member_expr = ExprWrapper::new(Box::new(MemberExpr {
-                    kind: NodeType::MemberExpr,
-                    object: member_expr,
-                    property: self.parse_primary_expr(),
-                    computed: false
-                }));
+            while self.at().get_token_type() == TokenType::Dot || self.at().get_token_type() == TokenType::OpenBracket {
+                if self.at().get_token_type() == TokenType::Dot {
+                    self.eat();
+                    member_expr = ExprWrapper::new(Box::new(MemberExpr {
+                        kind: NodeType::MemberExpr,
+                        object: member_expr,
+                        property: self.parse_primary_expr(),
+                        computed: false
+                    }));
+                } else {
+                    self.eat();
+                    member_expr = ExprWrapper::new(Box::new(MemberExpr {
+                        kind: NodeType::MemberExpr,
+                        object: member_expr,
+                        property: self.parse_expr(),
+                        computed: true
+                    }));
+                    self.eat();
+                }
             }
 
             return member_expr;

@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::fatal_error;
 
 use super::values::{BooleanValue, FunctionCall, NativeFnValue, NullValue, RuntimeValue};
-use super::native_funcs::native_print;
+use super::native_funcs::{native_print, native_sleep, native_time};
 
 pub fn setup_scope(env: &mut Environment) {
     env.declare_var(String::from("null"), Box::new(NullValue {}), true);
@@ -14,6 +14,16 @@ pub fn setup_scope(env: &mut Environment) {
     env.declare_var(String::from("print"), Box::new(NativeFnValue {
         call: FunctionCall {
             func: Rc::new(native_print)
+        }
+    }), true);
+    env.declare_var(String::from("time"), Box::new(NativeFnValue {
+        call: FunctionCall {
+            func: Rc::new(native_time)
+        }
+    }), true);
+    env.declare_var(String::from("sleep"), Box::new(NativeFnValue {
+        call: FunctionCall {
+            func: Rc::new(native_sleep)
         }
     }), true);
 }

@@ -61,56 +61,98 @@ impl Tokenizer {
         let mut src = source.chars().collect::<Vec<char>>();
 
         while src.len() > 0 {
+            if src[0] == '/' {
+                if src.len() > 1 {
+                    if src[1] == '/' {
+                        while src[0] != '\n' || src[0] != '\r' {
+                            src.remove(0);
+                        }
+                    }
+                }
+            }
             if src[0] == '(' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::OpenParen })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::OpenParen });
             } else if src[0] == ')' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::CloseParen })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::CloseParen });
             } else if src[0] == '{' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::OpenBrace })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::OpenBrace });
             } else if src[0] == '}' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::CloseBrace })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::CloseBrace });
             } else if src[0] == '[' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::OpenBracket })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::OpenBracket });
             } else if src[0] == ']' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::CloseBracket })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::CloseBracket });
             } else if src[0] == ',' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Comma })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Comma });
             } else if src[0] == '.' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Dot })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Dot });
             } else if src[0] == ':' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Colon })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Colon });
             } else if src[0] == '+' || src[0] == '-' ||
                       src[0] == '*' || src[0] == '/' ||
                       src[0] == '%' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::BinaryOperator })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::BinaryOperator });
             } else if src[0] == '=' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Equals })
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Equals });
             } else if src[0] == ';' {
-                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Semicolon })
-            } else {
-                // Handle multi char tokens  
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Semicolon });
+            } else if src[0] == '"' {
+                src.remove(0);
 
+                let mut escaped = false;
+                let mut string = String::new();
+                while src.len() > 0 && (src[0] != '"' || escaped) {
+                    if src[0] == '\\' && !escaped {
+                        escaped = true;
+                        src.remove(0);
+                    } else if escaped {
+                        match src[0] {
+                            '\\' => string.push(src.remove(0)),
+                            '\"' => string.push(src.remove(0)),
+                            'n' => {
+                                src.remove(0);
+                                string.push('\n');
+                            },
+                            't' => {
+                                src.remove(0);
+                                string.push('\t')
+                            }
+                            _ => fatal_error("Unexpected escaped token.")
+                        };
+                        escaped = false;
+                    } else {
+                        string.push(src.remove(0));
+                    }
+                }
+
+                src.remove(0);
+
+                token_output.push(Token {
+                    value: Some(string),
+                    token_type: TokenType::String
+                });
+            } else { 
                 // Build number
                 if src[0].is_numeric() {
                     let mut num = String::new();
                     
-                    while src.len() > 0 && (src[0].is_numeric() || src[0] == '.'   ) {
-                        num += &src.remove(0).to_string()
+                    while src.len() > 0 && (src[0].is_numeric() || src[0] == '.') {
+                        num += &src.remove(0).to_string();
                     }
 
-                    token_output.push(Token { value: Some(num), token_type: TokenType::Number })
+                    token_output.push(Token { value: Some(num), token_type: TokenType::Number });
                 } else if src[0].is_alphabetic() {
                     let mut identifier = String::new();
                     
                     while src.len() > 0 && (src[0].is_alphabetic() || src[0].is_numeric() || src[0] == '_') {
-                        identifier += &src.remove(0).to_string()
+                        identifier += &src.remove(0).to_string();
                     }
 
                     // Check for reserved keyword
                     if let Some(token_type) = self.get_keywords().get(&*identifier) {
-                        token_output.push(Token { value: Some(identifier), token_type: *token_type })
+                        token_output.push(Token { value: Some(identifier), token_type: *token_type });
                     } else {
-                        token_output.push(Token { value: Some(identifier), token_type: TokenType::Identifier })
+                        token_output.push(Token { value: Some(identifier), token_type: TokenType::Identifier });
                     }
                 } else if is_skippable(src[0]) {
                     src.remove(0);

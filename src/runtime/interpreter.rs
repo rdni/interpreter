@@ -3,6 +3,7 @@ use crate::runtime::values::{NumberValue, RuntimeValue};
 use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, Identifier, MemberExpr, NodeType, ObjectLiteral, Program, Stmt, StmtValue, StmtWrapper, VarDeclaration};
 
 use super::environment::Environment;
+use super::values::StringValue;
 
 use crate::eval::eval_statements::*;
 use crate::eval::eval_expressions::*;
@@ -12,6 +13,9 @@ pub fn eval(ast_node: StmtWrapper, env: &mut Environment) -> Box<dyn RuntimeValu
         // Handle expressions
         NodeType::NumericLiteral => Box::new(NumberValue {
             value: if let StmtValue::F64(val) = ast_node.get_value().unwrap() { val } else { 0.0 as f64}
+        }),
+        NodeType::String => Box::new(StringValue {
+            value: if let StmtValue::StringVal(val) = ast_node.get_value().unwrap() { val } else { String::new() }
         }),
         NodeType::BinaryExpr => {
             let bin_expr = ast_node.as_any().downcast_ref::<BinaryExpr>().expect("Failed to downcast to BinaryExpr.");

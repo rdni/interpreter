@@ -18,7 +18,8 @@ pub enum NodeType {
     NumericLiteral,
     NullLiteral,
     Property,
-    Object
+    Object,
+    String
 }
 
 pub enum StmtValue {
@@ -493,6 +494,45 @@ impl Expr for MemberExpr {
     }
     fn get_expr_value(&self) -> Option<StmtValue> {
         None
+    }
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(self.clone())
+    }
+    fn to_stmt_from_expr(&self) -> StmtWrapper {
+        StmtWrapper::new(Box::new(self.clone()))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct StringLiteral {
+    pub kind: NodeType,
+    pub string: String,
+}
+
+impl Stmt for StringLiteral {
+    fn get_kind(&self) -> NodeType {
+        self.get_expr_kind()
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        Some(self.get_expr_value().unwrap())
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+impl Expr for StringLiteral {
+    fn get_expr_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_expr_value(&self) -> Option<StmtValue> {
+        Some(StmtValue::StringVal(self.string.clone()))
     }
     fn clone_box(&self) -> Box<dyn Expr> {
         Box::new(self.clone())
