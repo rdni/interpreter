@@ -288,7 +288,7 @@ impl Parser {
             } 
             else if self.at().get_token_type() == TokenType::OpenBracket {
                 self.eat();
-                property = self.parse_primary_expr();
+                property = self.parse_expr();
                 computed = true;
                 self.eat();
             }
