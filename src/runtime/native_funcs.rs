@@ -1,5 +1,5 @@
 use crate::{fatal_error, runtime::values::NullValue};
-use std::{io, thread, time::{Duration, SystemTime}};
+use std::{io, process::exit, thread, time::{Duration, SystemTime}};
 
 use super::{environment::Environment, values::{NumberValue, RuntimeValue, StringValue, ValueType}};
 
@@ -62,4 +62,18 @@ pub fn native_input(args: Vec<Box<dyn RuntimeValue>>, _env: &mut Environment) ->
 
     Box::new(StringValue { value: input })
 
+}
+
+pub fn native_exit(args: Vec<Box<dyn RuntimeValue>>, _env: &mut Environment) -> Box<dyn RuntimeValue> {
+    let mut code = 0;
+
+    if args.len() == 1 {
+        if args[0].get_type() == ValueType::Number {
+            code = args[0].as_any().downcast_ref::<NumberValue>().unwrap().value as i32;
+        } else {
+            fatal_error(&format!("Expected number, found {}", args[0].get_type()));
+        }
+    }
+
+    exit(code);
 }

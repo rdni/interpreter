@@ -4,7 +4,7 @@ use std::rc::Rc;
 use crate::fatal_error;
 
 use super::values::{BooleanValue, FunctionCall, NativeFnValue, NullValue, RuntimeValue};
-use super::native_funcs::{native_input, native_print, native_sleep, native_time};
+use super::native_funcs::{native_exit, native_input, native_print, native_sleep, native_time};
 
 pub fn setup_scope(env: &mut Environment) {
     env.declare_var(String::from("null"), Box::new(NullValue {}), true);
@@ -29,6 +29,11 @@ pub fn setup_scope(env: &mut Environment) {
     env.declare_var(String::from("input"), Box::new(NativeFnValue {
         call: FunctionCall {
             func: Rc::new(native_input)
+        }
+    }), true);
+    env.declare_var(String::from("exit"), Box::new(NativeFnValue {
+        call: FunctionCall {
+            func: Rc::new(native_exit)
         }
     }), true);
 }

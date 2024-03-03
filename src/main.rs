@@ -18,8 +18,7 @@ fn main() {
     // println!("{:?}", tokenizer.tokenize(fs::read_to_string("src/testingfile.tl").unwrap()));
 
     let mut env = Environment::new(None);
-    let mut exit = false;
-    while exit == false {
+    loop {
         let mut input = String::new();
 
         print!("> ");
@@ -28,9 +27,7 @@ fn main() {
             .read_line(&mut input)
             .unwrap();
 
-        if input.trim() == "exit" {
-            exit = true;
-        } else if input.trim() == "file" {
+        if input.trim() == "file" {
             // let mut input = String::new();
 
             // print!("File name > ");
