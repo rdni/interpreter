@@ -36,6 +36,8 @@ fn main() {
             //     .read_line(&mut input)
             //     .unwrap();
 
+            env = Environment::new(None);
+
             let ast = program.produce_ast(fs::read_to_string("src/testingfile.txt").unwrap());
             // println!("AST: {:?}", ast);
             eval(StmtWrapper::new(Box::new(ast)), &mut env).to_string();

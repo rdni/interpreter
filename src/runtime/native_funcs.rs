@@ -1,5 +1,5 @@
 use crate::{fatal_error, runtime::values::NullValue};
-use std::{io, process::exit, thread, time::{Duration, SystemTime}};
+use std::{io::{self, Write}, process::exit, thread, time::{Duration, SystemTime}};
 
 use super::{environment::Environment, values::{NumberValue, RuntimeValue, StringValue, ValueType}};
 
@@ -47,6 +47,7 @@ pub fn native_input(args: Vec<Box<dyn RuntimeValue>>, _env: &mut Environment) ->
     if args.len() == 1 {
         if args[0].get_type() == ValueType::String {
             print!("{}", args[0].as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StringValue.").to_string());
+            io::stdout().flush().unwrap();
         }
     }
 

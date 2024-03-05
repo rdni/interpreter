@@ -1,17 +1,7 @@
-var foo = 50 / 2;
+function add(x, y) {
+    const result = x + y;
 
-const test = {
-    x: 100,
-    y: 32,
-    foo,
-    complex: {
-        bar: true
-    }
-};
+    print(result);
 
-print(test);
-
-var f = test.complex.bar;
-
-print(test.y + f);
-print(test.x + test.y);
+    return result;
+}

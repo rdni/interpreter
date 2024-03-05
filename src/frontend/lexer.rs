@@ -12,6 +12,7 @@ pub enum TokenType {
 
     Var,
     Const,
+    Function,
 
     Comma,
     Colon,
@@ -52,6 +53,7 @@ impl Tokenizer {
 
         keywords.insert("var", TokenType::Var);
         keywords.insert("const", TokenType::Const);
+        keywords.insert("function", TokenType::Function);
 
         keywords
     }

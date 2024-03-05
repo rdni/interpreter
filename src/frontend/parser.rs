@@ -1,8 +1,9 @@
 use crate::frontend::ast::{
-    AssignmentExpr, BinaryExpr, CallExpr, Expr, ExprWrapper, Identifier, NodeType, NumericLiteral, ObjectLiteral, Program, Property, Stmt, StmtWrapper, VarDeclaration
+    AssignmentExpr, BinaryExpr, CallExpr, Expr, ExprWrapper, FunctionDeclaration, Identifier, NodeType, NumericLiteral, ObjectLiteral, Program, Property, Stmt, StmtWrapper, VarDeclaration
 };
 use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
+
 
 use super::ast::{MemberExpr, StringLiteral};
 
@@ -20,7 +21,10 @@ impl Parser {
         };
 
         while self.not_eof() {
-            program.body.push(self.parse_stmt());
+            let stmt = self.parse_stmt();
+            if let Some(v) = stmt {
+                program.body.push(v);
+            }
         }
 
         program
@@ -52,12 +56,58 @@ impl Parser {
         self.at().get_token_type() != TokenType::EOF
     }
 
-    fn parse_stmt(&mut self) -> StmtWrapper {
+    fn parse_stmt(&mut self) -> Option<StmtWrapper> {
         match self.at().get_token_type() {
-            TokenType::Var => self.parse_var_declaration(),
-            TokenType::Const => self.parse_var_declaration(),
-            _ => self.parse_expr().to_stmt_from_expr()
+            TokenType::Var => Some(self.parse_var_declaration()),
+            TokenType::Const => Some(self.parse_var_declaration()),
+            TokenType::Function => Some(self.parse_function_declaration()),
+            TokenType::Semicolon => {
+                self.eat();
+                if self.not_eof() {
+                    self.parse_stmt()
+                } else {
+                    None
+                }
+            }
+            _ => Some(self.parse_expr().to_stmt_from_expr())
         }
+    }
+
+    fn parse_function_declaration(&mut self) -> StmtWrapper {
+        self.eat();
+
+        let name = self.eat_expect(TokenType::Identifier, "Unexpected token after function declaration", LoggingLevel::Fatal).value.unwrap();
+
+        let args = self.parse_args();
+        let mut params = Vec::new();
+
+        for arg in args.into_iter() {
+            if arg.get_kind() == NodeType::Identifier {
+                params.push(arg.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone().symbol);
+            } else {
+                fatal_error("Expected identifier inside function declaration");
+            }
+        }
+        
+        self.eat_expect(TokenType::OpenBrace, "Expected function body", LoggingLevel::Fatal);
+
+        let mut body = Vec::new();
+
+        while self.at().get_token_type() != TokenType::CloseBrace && self.at().get_token_type() != TokenType::EOF {
+            let stmt = self.parse_stmt();
+            if let Some(v) = stmt {
+                body.push(v);
+            }
+        }
+
+        self.eat_expect(TokenType::CloseBrace, "Expected closing brace in function body", LoggingLevel::Fatal);
+
+        return StmtWrapper::new(Box::new(FunctionDeclaration { 
+            kind: NodeType::FunctionDeclaration,
+            parameters: params,
+            name,
+            body
+        }));
     }
 
     // VAR IDENTIFIER;
@@ -181,10 +231,6 @@ impl Parser {
                 let value = self.parse_expr();
                 self.eat_expect(TokenType::CloseParen, "Unexpected token found inside parenthesis.", LoggingLevel::Fatal);
                 value
-            },
-            TokenType::Semicolon => {
-                self.eat();
-                ExprWrapper::new(Box::new(Identifier { kind: NodeType::Identifier, symbol: String::from("null") }))
             }
             _ => fatal_error(&format!("Unexpected token found during parsing: {:?}", self.at()))
         }

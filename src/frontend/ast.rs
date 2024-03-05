@@ -6,6 +6,7 @@ pub enum NodeType {
 
     // Statements
     VarDeclaration,
+    FunctionDeclaration,
 
     // Expressions
     Identifier,
@@ -109,6 +110,32 @@ pub struct VarDeclaration {
 impl Stmt for VarDeclaration {
     fn get_kind(&self) -> NodeType {
         NodeType::VarDeclaration
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionDeclaration {
+    pub kind: NodeType,
+    pub parameters: Vec<String>,
+    pub name: String,
+    pub body: Vec<StmtWrapper>
+}
+
+impl Stmt for FunctionDeclaration {
+    fn get_kind(&self) -> NodeType {
+        NodeType::FunctionDeclaration
     }
     fn get_value(&self) -> Option<StmtValue> {
         None
