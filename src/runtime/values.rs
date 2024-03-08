@@ -1,6 +1,6 @@
-use std::{any::Any, collections::HashMap, fmt::{Debug, Display}, rc::Rc};
+use std::{any::Any, collections::HashMap, fmt::{Debug, Display}, rc::Rc, sync::{Arc, Mutex}};
 
-use crate::pad_each_line;
+use crate::{frontend::ast::StmtWrapper, pad_each_line};
 
 use super::environment::Environment;
 
@@ -11,7 +11,8 @@ pub enum ValueType {
     String,
     Boolean,
     Object,
-    NativeFn
+    NativeFn,
+    Function
 }
 
 impl Display for ValueType {
@@ -22,7 +23,8 @@ impl Display for ValueType {
             Self::Null => write!(f, "null"),
             Self::Number => write!(f, "number"),
             Self::Object => write!(f, "object"),
-            Self::String => write!(f, "string")
+            Self::String => write!(f, "string"),
+            Self::Function => write!(f, "function")
         }?;
 
         Ok(())
@@ -141,7 +143,7 @@ impl RuntimeValue for ObjectValue {
 }
 
 pub struct FunctionCall {
-    pub func: Rc<dyn Fn(Vec<Box<dyn RuntimeValue>>, &mut Environment) -> Box<dyn RuntimeValue> + 'static>,
+    pub func: Rc<dyn Fn(Vec<Box<dyn RuntimeValue>>, &Mutex<Environment>) -> Box<dyn RuntimeValue> + 'static>,
 }
 
 impl Clone for FunctionCall {
@@ -195,5 +197,39 @@ impl RuntimeValue for StringValue {
     }
     fn to_string(&self) -> String {
         self.value.clone()
+    }
+}
+
+#[derive(Debug)]
+pub struct FunctionValue {
+    pub name: String,
+    pub parameters: Vec<String>,
+    pub declaration_env: Arc<Mutex<Environment>>,
+    pub body: Vec<StmtWrapper>
+}
+
+impl RuntimeValue for FunctionValue {
+    fn get_type(&self) -> ValueType {
+        ValueType::Function
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_self(&self) -> Box<dyn RuntimeValue> {
+        Box::new(self.clone())
+    }
+    fn to_string(&self) -> String {
+        self.name.clone()
+    }
+}
+
+impl Clone for FunctionValue {
+    fn clone(&self) -> Self {
+        FunctionValue {
+            name: self.name.clone(),
+            parameters: self.parameters.clone(),
+            declaration_env: Arc::clone(&self.declaration_env),
+            body: self.body.clone()
+        }
     }
 }

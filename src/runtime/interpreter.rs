@@ -1,6 +1,8 @@
+use std::sync::{Arc, Mutex};
+
 use crate::fatal_error;
 use crate::runtime::values::{NumberValue, RuntimeValue};
-use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, Identifier, MemberExpr, NodeType, ObjectLiteral, Program, Stmt, StmtValue, StmtWrapper, VarDeclaration};
+use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, FunctionDeclaration, Identifier, MemberExpr, NodeType, ObjectLiteral, Program, Stmt, StmtValue, StmtWrapper, VarDeclaration};
 
 use super::environment::Environment;
 use super::values::StringValue;
@@ -8,7 +10,7 @@ use super::values::StringValue;
 use crate::eval::eval_statements::*;
 use crate::eval::eval_expressions::*;
 
-pub fn eval(ast_node: StmtWrapper, env: &mut Environment) -> Box<dyn RuntimeValue> {
+pub fn eval(ast_node: StmtWrapper, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
     match ast_node.get_kind() {
         // Handle expressions
         NodeType::NumericLiteral => Box::new(NumberValue {
@@ -46,12 +48,16 @@ pub fn eval(ast_node: StmtWrapper, env: &mut Environment) -> Box<dyn RuntimeValu
             let var_declaration = ast_node.as_any().downcast_ref::<VarDeclaration>().expect("Failed to downcast to VarDeclaration.");
             eval_var_declaration(var_declaration.clone(), env)
         },
+        NodeType::FunctionDeclaration => {
+            let function_declaration = ast_node.as_any().downcast_ref::<FunctionDeclaration>().expect("Failed to downcast to FunctionDeclaration.");
+            eval_function_declaration(function_declaration.clone(), env)
+        }
         NodeType::Program => {
             let program = ast_node.as_any().downcast_ref::<Program>().expect("Failed to downcast to Program.");
             eval_program(program.clone(), env)
         },
         _ =>  {
-            fatal_error("This statement has not yet been set up.")
+            fatal_error(&format!("This statement has not yet been set up for interpretation:\n{:?}", ast_node));
         }
     }
 }

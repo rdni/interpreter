@@ -30,8 +30,8 @@ impl Parser {
         program
     }
 
-    fn at(&self) -> Token {
-        self.tokens[0].clone()
+    fn at(&self) -> &Token {
+        &self.tokens[0]
     }
 
     fn eat(&mut self) -> Token {
@@ -46,7 +46,7 @@ impl Parser {
                 LoggingLevel::Error => error(&format!("Parser Error:\n{} {:?}.\nExpecting {:?}", error_msg, self.at(), token_type)),
                 LoggingLevel::Fatal => fatal_error(&format!("Parser Error:\n{} {:?}.\nExpecting {:?}", error_msg, self.at(), token_type))
             };
-            self.at()
+            self.at().clone()
         } else {
             self.eat()
         }
@@ -63,7 +63,7 @@ impl Parser {
             TokenType::Function => Some(self.parse_function_declaration()),
             TokenType::Semicolon => {
                 self.eat();
-                if self.not_eof() {
+                if self.not_eof() && self.at().get_token_type() != TokenType::CloseBrace {
                     self.parse_stmt()
                 } else {
                     None
@@ -239,7 +239,7 @@ impl Parser {
     fn parse_additive_expr(&mut self) -> ExprWrapper {
         let mut left = self.parse_multiplicative_expr();
 
-        while self.at().value.unwrap() == "+" || self.at().value.unwrap() == "-" {
+        while self.at().value.clone().unwrap() == "+" || self.at().value.clone().unwrap() == "-" {
             let operator = self.eat().value.unwrap();
             let right = self.parse_multiplicative_expr();
 
@@ -257,7 +257,7 @@ impl Parser {
     fn parse_multiplicative_expr(&mut self) -> ExprWrapper {
         let mut left = self.parse_call_member_expr();
 
-        while self.at().value.unwrap() == "*" || self.at().value.unwrap() == "/" || self.at().value.unwrap() == "%" {
+        while self.at().value.clone().unwrap() == "*" || self.at().value.clone().unwrap() == "/" || self.at().value.clone().unwrap() == "%" {
             let operator = self.eat().value.unwrap();
             let right = self.parse_call_member_expr();
 

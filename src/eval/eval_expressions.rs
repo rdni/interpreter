@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 
 use crate::{error, fatal_error};
 use crate::runtime::values::{NativeFnValue, NullValue, NumberValue, ObjectValue, RuntimeValue, StringValue, ValueType};
@@ -6,9 +7,9 @@ use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, Expr, Identifie
 use crate::runtime::environment::Environment;
 use crate::runtime::interpreter::eval;
 
-pub fn eval_binop_expr(binop: BinaryExpr, env: &mut Environment) -> Box<dyn RuntimeValue> {
-    let lhs = eval(binop.left.to_stmt_from_expr(), env);
-    let rhs = eval(binop.right.to_stmt_from_expr(), env);
+pub fn eval_binop_expr(binop: BinaryExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    let lhs = eval(binop.left.to_stmt_from_expr(), Arc::clone(&env));
+    let rhs = eval(binop.right.to_stmt_from_expr(), Arc::clone(&env));
 
     if lhs.get_type() == ValueType::Number && rhs.get_type() == ValueType::Number {
         let lhs = lhs.as_any().downcast_ref::<NumberValue>().expect("Failed to downcast to NumberValue");
@@ -67,16 +68,16 @@ pub fn eval_string_numeric_binary_expr(string: StringValue, number: NumberValue,
     }
 }
 
-pub fn eval_identifier(identifier: Identifier, env: &mut Environment) -> Box<dyn RuntimeValue> {
-    env.lookup_var(identifier.symbol)
+pub fn eval_identifier(identifier: Identifier, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    env.lock().unwrap().lookup_var(identifier.symbol)
 }
 
-pub fn eval_assignment(node: AssignmentExpr, env: &mut Environment) -> Box<dyn RuntimeValue> {
+pub fn eval_assignment(node: AssignmentExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
     match node.assignee.get_kind() {
         NodeType::Identifier => {
             let identifier = node.assignee.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone();
-            let value = eval(node.value.to_stmt_from_expr(), env);
-            env.assign_var(identifier.symbol, value)
+            let value = eval(node.value.to_stmt_from_expr(), Arc::clone(&env));
+            env.lock().unwrap().assign_var(identifier.symbol, value)
         },
         NodeType::MemberExpr => {
             let member_expr = node.assignee.as_any().downcast_ref::<MemberExpr>().expect("Failed to downcast to MemberExpr.").clone();
@@ -86,16 +87,16 @@ pub fn eval_assignment(node: AssignmentExpr, env: &mut Environment) -> Box<dyn R
             if member_expr.property.get_kind() == NodeType::Identifier {
                 property = member_expr.property.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone().symbol;
             } else if member_expr.property.get_kind() == NodeType::String {
-                property = eval(member_expr.property.to_stmt_from_expr(), env).as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StrinvValue.").clone().value;
+                property = eval(member_expr.property.to_stmt_from_expr(), Arc::clone(&env)).as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StrinvValue.").clone().value;
             } else {
                 fatal_error("Unexpected value in member assignment expr");
             }
 
-            let mut obj = env.lookup_var(object_identifier.symbol.clone()).as_any().downcast_ref::<ObjectValue>().expect("Failed to downcast to ObjectValue.").clone();
-            let value = eval(node.value.to_stmt_from_expr(), env);
+            let value = eval(node.value.to_stmt_from_expr(), Arc::clone(&env));
+            let mut obj = env.lock().unwrap().lookup_var(object_identifier.symbol.clone()).as_any().downcast_ref::<ObjectValue>().expect("Failed to downcast to ObjectValue.").clone();
 
             obj.properties.insert(property, value);
-            env.assign_var(object_identifier.symbol, Box::new(obj))
+            env.lock().unwrap().assign_var(object_identifier.symbol, Box::new(obj))
         },
         _ => {
             fatal_error(&format!("Invalid LHS inside assignment expression: {:?}", node.assignee));
@@ -103,22 +104,22 @@ pub fn eval_assignment(node: AssignmentExpr, env: &mut Environment) -> Box<dyn R
     }
 }
 
-pub fn eval_object_expr(obj: ObjectLiteral, env: &mut Environment) -> Box<dyn RuntimeValue> {
+pub fn eval_object_expr(obj: ObjectLiteral, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
     let mut object = ObjectValue { properties: HashMap::<String, Box<dyn RuntimeValue>>::new() };
 
     for i in obj.properties {
         if let Some(value) = i.value {
-            object.properties.insert(i.key.unwrap(), eval(value.to_stmt_from_expr(), env));
+            object.properties.insert(i.key.unwrap(), eval(value.to_stmt_from_expr(), Arc::clone(&env)));
         } else {
-            object.properties.insert(i.key.clone().unwrap(), env.lookup_var(i.key.unwrap()));
+            object.properties.insert(i.key.clone().unwrap(), env.lock().unwrap().lookup_var(i.key.unwrap()));
         }
     }
 
     return Box::new(object);
 }
 
-pub fn eval_member_expr(node: MemberExpr, env: &mut Environment) -> Box<dyn RuntimeValue> {
-    let obj = eval(node.object.to_stmt_from_expr(), env).as_any().downcast_ref::<ObjectValue>().unwrap().clone();
+pub fn eval_member_expr(node: MemberExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    let obj = eval(node.object.to_stmt_from_expr(), Arc::clone(&env)).as_any().downcast_ref::<ObjectValue>().unwrap().clone();
     if !node.computed {
         if node.property.get_expr_kind() != NodeType::Identifier {
             fatal_error("Unexpected value found in member expression.");
@@ -139,18 +140,18 @@ pub fn eval_member_expr(node: MemberExpr, env: &mut Environment) -> Box<dyn Runt
     obj.properties.get(&property.value).unwrap().clone()
 }
 
-pub fn eval_call(expr: CallExpr, env: &mut Environment) -> Box<dyn RuntimeValue> {
+pub fn eval_call(expr: CallExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
     let mut evaluated_args = vec![];
 
     for arg in expr.args {
-        evaluated_args.push(eval(arg.to_stmt_from_expr(), env));
+        evaluated_args.push(eval(arg.to_stmt_from_expr(), Arc::clone(&env)));
     }
 
-    let func = eval(expr.caller.to_stmt_from_expr(), env);
+    let func = eval(expr.caller.to_stmt_from_expr(), Arc::clone(&env));
 
     if func.get_type() == ValueType::NativeFn {
         let func = func.as_any().downcast_ref::<NativeFnValue>().expect("Failed to downcast to NativeFnValue.").clone();
-        return (func.call.func)(evaluated_args, env);
+        return (func.call.func)(evaluated_args, &env);
     }
 
     fatal_error(&format!("Cannot call {:?}", func.get_type()));

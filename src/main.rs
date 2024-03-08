@@ -11,13 +11,15 @@ use interpreter::frontend::ast::StmtWrapper;
 use std::fs;
 use std::io;
 use std::io::Write;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 fn main() {
     let mut program = Parser { tokens: vec![] };
 
     // println!("{:?}", tokenizer.tokenize(fs::read_to_string("src/testingfile.tl").unwrap()));
 
-    let mut env = Environment::new(None);
+    let env = Arc::new(Mutex::new(Environment::new(None)));
     loop {
         let mut input = String::new();
 
@@ -36,15 +38,15 @@ fn main() {
             //     .read_line(&mut input)
             //     .unwrap();
 
-            env = Environment::new(None);
+            *env.lock().unwrap() = Environment::new(None);
 
             let ast = program.produce_ast(fs::read_to_string("src/testingfile.txt").unwrap());
             // println!("AST: {:?}", ast);
-            eval(StmtWrapper::new(Box::new(ast)), &mut env).to_string();
+            eval(StmtWrapper::new(Box::new(ast)), Arc::clone(&env)).to_string();
         } else {
             let ast = program.produce_ast(input);
             // println!("AST: {:?}", ast);
-            println!("{}", &eval(StmtWrapper::new(Box::new(ast)), &mut env).to_string());
+            println!("{}", &eval(StmtWrapper::new(Box::new(ast)), Arc::clone(&env)).to_string());
         }
     }
 

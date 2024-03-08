@@ -38,6 +38,7 @@ pub fn setup_scope(env: &mut Environment) {
     }), true);
 }
 
+#[derive(Debug, Clone)]
 pub struct Environment {
     parent: Option<Box<Environment>>,
     variables: HashMap<String, Box<dyn RuntimeValue>>,
