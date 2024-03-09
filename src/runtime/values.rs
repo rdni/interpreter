@@ -1,6 +1,6 @@
 use std::{any::Any, collections::HashMap, fmt::{Debug, Display}, rc::Rc, sync::{Arc, Mutex}};
 
-use crate::{frontend::ast::StmtWrapper, pad_each_line};
+use crate::{fatal_error, frontend::ast::StmtWrapper, pad_each_line, runtime::interpreter::eval};
 
 use super::environment::Environment;
 
@@ -206,6 +206,31 @@ pub struct FunctionValue {
     pub parameters: Vec<String>,
     pub declaration_env: Arc<Mutex<Environment>>,
     pub body: Vec<StmtWrapper>
+}
+
+impl FunctionValue {
+    pub fn call(&self, env: Arc<Mutex<Environment>>, args: Vec<Box<dyn RuntimeValue>>) -> Box<dyn RuntimeValue> {
+        let new_env = Arc::new(Mutex::new(Environment::new(Some(Arc::clone(&env)))));
+
+        if args.len() != self.parameters.len() {
+            fatal_error(&format!("Expected {} arguments, found {}", self.parameters.len(), args.len()));
+        }
+
+        for i in 0..(self.parameters.len()) {
+            new_env.lock().unwrap().declare_var(self.parameters[i].clone(), args.get(i).unwrap().clone(), false);
+        }
+
+        let mut last_evaluated: Box<dyn RuntimeValue> = Box::new(NullValue {});
+        for stmt in self.body.clone() {
+            if new_env.lock().unwrap().continue_interpreting {
+                last_evaluated = eval(stmt, Arc::clone(&new_env));
+            } else {
+                break;
+            }
+        }
+
+        return last_evaluated;
+    }
 }
 
 impl RuntimeValue for FunctionValue {

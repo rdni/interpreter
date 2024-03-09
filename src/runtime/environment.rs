@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use crate::fatal_error;
 
@@ -40,16 +41,18 @@ pub fn setup_scope(env: &mut Environment) {
 
 #[derive(Debug, Clone)]
 pub struct Environment {
-    parent: Option<Box<Environment>>,
+    parent: Option<Arc<Mutex<Environment>>>,
     variables: HashMap<String, Box<dyn RuntimeValue>>,
-    constants: Vec<String>
+    constants: Vec<String>,
+    position: usize,
+    pub continue_interpreting: bool
 }
 
 impl Environment {
-    pub fn new(parent_param: Option<Environment>) -> Self {
+    pub fn new(parent_param: Option<Arc<Mutex<Environment>>>) -> Self {
         let parent;
         if let Some(parent_env) = parent_param {
-            parent = Some(Box::new(parent_env));
+            parent = Some(parent_env);
         } else {
             parent = None;
         }
@@ -64,7 +67,9 @@ impl Environment {
         let mut env = Environment {
             parent,
             variables: HashMap::new(),
-            constants: Vec::new()
+            constants: Vec::new(),
+            position: 0,
+            continue_interpreting: true
         };
 
         if global {
@@ -72,6 +77,14 @@ impl Environment {
         }
 
         env
+    }
+
+    pub fn is_global(&self) -> bool {
+        if let None = self.parent {
+            true
+        } else {
+            false
+        }
     }
     
     pub fn get_constants(&self) -> &Vec<String> {
@@ -90,33 +103,48 @@ impl Environment {
 
         value
     }
+}
 
-    pub fn assign_var(&mut self , varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
-        let env = self.resolve(&varname);
+// Entirely here because I can't be bothered to make a better solution
+pub enum EnvResolveResult<'a> {
+    MutRef(&'a mut Environment),
+    ArcMutex(Arc<Mutex<Environment>>)
+}
 
-        if env.get_constants().contains(&varname) {
-            fatal_error("Cannot re-assign a constant variable.");
+pub struct SharedEnvironment(pub Arc<Mutex<Environment>>);
+
+
+impl SharedEnvironment {
+    pub fn resolve(&mut self, varname: &String) -> Arc<Mutex<Environment>> {
+        let inner = &self.0;
+        if inner.lock().unwrap().variables.contains_key(varname) {
+            Arc::clone(&inner)
+        } else {
+            let mut parent = SharedEnvironment(match &inner.lock().unwrap().parent {
+                Some(v) => Arc::clone(&v),
+                None => fatal_error(&format!("Error resolving variable {}", varname))
+            });
+            parent.resolve(varname)
         }
-
-        env.variables.insert(varname, value.clone_self());
-
-        value
     }
 
     pub fn lookup_var(&mut self, varname: String) -> Box<dyn RuntimeValue> {
         let env = self.resolve(&varname);
-        (*env.variables.get(&varname).unwrap()).clone()
+        let x = env.lock().unwrap().variables.get(&varname).unwrap().clone();
+        x
     }
 
-    pub fn resolve(&mut self, varname: &String) -> &mut Environment {
-        if self.variables.contains_key(varname) {
-            self
-        } else {
-            if self.parent.is_none() {
-                fatal_error(&format!("Cannot resolve {}", varname));
-            } else {
-                self.parent.as_mut().unwrap().resolve(varname)
-            }
+    pub fn assign_var(&mut self , varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
+        let env = self.resolve(&varname);
+
+        let is_constant = env.lock().unwrap().get_constants().contains(&varname);
+
+        if !is_constant {
+            fatal_error("Cannot re-assign a constant variable.");
         }
+
+        env.lock().unwrap().variables.insert(varname, value.clone_self());
+
+        value
     }
 }

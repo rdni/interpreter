@@ -7,6 +7,7 @@ pub enum NodeType {
     // Statements
     VarDeclaration,
     FunctionDeclaration,
+    Return,
 
     // Expressions
     Identifier,
@@ -566,5 +567,29 @@ impl Expr for StringLiteral {
     }
     fn to_stmt_from_expr(&self) -> StmtWrapper {
         StmtWrapper::new(Box::new(self.clone()))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ReturnStmt {
+    pub kind: NodeType,
+    pub value: ExprWrapper
+}
+
+impl Stmt for ReturnStmt {
+    fn get_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
     }
 }

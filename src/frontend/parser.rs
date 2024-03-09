@@ -5,7 +5,7 @@ use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
 
 
-use super::ast::{MemberExpr, StringLiteral};
+use super::ast::{MemberExpr, ReturnStmt, StringLiteral};
 
 pub struct Parser {
     pub tokens: Vec<Token>
@@ -61,6 +61,7 @@ impl Parser {
             TokenType::Var => Some(self.parse_var_declaration()),
             TokenType::Const => Some(self.parse_var_declaration()),
             TokenType::Function => Some(self.parse_function_declaration()),
+            TokenType::Return => Some(self.parse_return()),
             TokenType::Semicolon => {
                 self.eat();
                 if self.not_eof() && self.at().get_token_type() != TokenType::CloseBrace {
@@ -71,6 +72,19 @@ impl Parser {
             }
             _ => Some(self.parse_expr().to_stmt_from_expr())
         }
+    }
+
+    fn parse_return(&mut self) -> StmtWrapper {
+        self.eat();
+
+        let value = self.parse_expr();
+
+        self.eat_expect(TokenType::Semicolon, "Expected semicolon after return statement", LoggingLevel::Fatal);
+
+        return StmtWrapper::new(Box::new(ReturnStmt {
+            kind: NodeType::Return,
+            value
+        }));
     }
 
     fn parse_function_declaration(&mut self) -> StmtWrapper {
