@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::{error, fatal_error};
-use crate::runtime::values::{FunctionValue, NativeFnValue, NullValue, NumberValue, ObjectValue, RuntimeValue, StringValue, ValueType};
-use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, Expr, Identifier, MemberExpr, NodeType, ObjectLiteral, Stmt};
+use crate::{error, fatal_error, MK_BOOL, MK_NULL, MK_NUMBER, MK_STRING};
+use crate::runtime::values::{BooleanValue, FunctionValue, NativeFnValue, NullValue, NumberValue, ObjectValue, RuntimeValue, StringValue, ValueType};
+use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, Expr, Identifier, MemberExpr, NodeType, ObjectLiteral, Stmt};
 use crate::runtime::environment::{Environment, SharedEnvironment};
 use crate::runtime::interpreter::eval;
 
@@ -32,39 +32,58 @@ pub fn eval_binop_expr(binop: BinaryExpr, env: Arc<Mutex<Environment>>) -> Box<d
 
         eval_string_numeric_binary_expr(string, number, binop.operator)
     } else{
-        Box::new(NullValue {})
+        Box::new(MK_NULL!())
     }
 }
 
 pub fn eval_numeric_binary_expr(lhs: NumberValue, rhs: NumberValue, operator: String) -> Box<NumberValue> {
     match &*operator {
-        "+" => Box::new(NumberValue { value: lhs.value + rhs.value }),
-        "-" => Box::new(NumberValue { value: lhs.value - rhs.value }),
-        "*" => Box::new(NumberValue { value: lhs.value * rhs.value }),
-        "/" => Box::new(NumberValue { value: lhs.value / rhs.value }),
-        "%" => Box::new(NumberValue { value: lhs.value % rhs.value }),
-        _ => Box::new(NumberValue { value: 0.0 })
+        "+" => Box::new(MK_NUMBER!(lhs.value + rhs.value)),
+        "-" => Box::new(MK_NUMBER!(lhs.value - rhs.value)),
+        "*" => Box::new(MK_NUMBER!(lhs.value * rhs.value)),
+        "/" => Box::new(MK_NUMBER!(lhs.value / rhs.value)),
+        "%" => Box::new(MK_NUMBER!(lhs.value % rhs.value)),
+        _ => Box::new(MK_NUMBER!(0.0))
     }
 }
 
 pub fn eval_string_binary_expr(lhs: StringValue, rhs: StringValue, operator: String) -> Box<StringValue> {
     match &*operator {
-        "+" => Box::new(StringValue { value: lhs.value + &rhs.value }),
+        "+" => Box::new(MK_STRING!(lhs.value + &rhs.value)),
         _ => {
             error("Invalid operator between string and string");
-            Box::new(StringValue { value: String::from("") })
+            Box::new(MK_STRING!(String::from("") ))
         }
     }
 }
 
 pub fn eval_string_numeric_binary_expr(string: StringValue, number: NumberValue, operator: String) -> Box<StringValue> {
     match &*operator {
-        "+" => Box::new(StringValue { value: string.value + &number.value.to_string() }),
-        "*" => Box::new(StringValue { value: string.value.repeat(number.value as usize) }),
+        "+" => Box::new(MK_STRING!(string.value + &number.value.to_string())),
+        "*" => Box::new(MK_STRING!(string.value.repeat(number.value as usize))),
         _ => {
             error("Invalid operator between string and number");
-            Box::new(StringValue { value: String::from("") })
+            Box::new(MK_STRING!(String::from("")))
         }
+    }
+}
+
+pub fn eval_comp_expr(comp: ComparativeExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    let left = eval(comp.left.to_stmt_from_expr(), Arc::clone(&env));
+    let right = eval(comp.right.to_stmt_from_expr(), Arc::clone(&env));
+    if comp.operator == "==" {
+        if left.get_type() != right.get_type() {
+            Box::new(MK_BOOL!(false))
+        } else {
+            if left.equals(right) {
+                Box::new(MK_BOOL!(true))
+            } else {
+                Box::new(MK_BOOL!(false))
+            }
+        }
+    } else {
+        error("Invalid operator in comparative expression.");
+        Box::new(NullValue {})
     }
 }
 

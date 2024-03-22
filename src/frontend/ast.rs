@@ -8,10 +8,12 @@ pub enum NodeType {
     VarDeclaration,
     FunctionDeclaration,
     Return,
+    If,
 
     // Expressions
     Identifier,
     BinaryExpr,
+    ComparativeExpr,
     AssignmentExpr,
     MemberExpr,
     CallExpr,
@@ -279,6 +281,47 @@ impl Stmt for BinaryExpr {
 }
 
 impl Expr for BinaryExpr {
+    fn get_expr_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_expr_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(self.clone())
+    }
+    fn to_stmt_from_expr(&self) -> StmtWrapper {
+        StmtWrapper::new(Box::new(self.clone()))
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ComparativeExpr {
+    pub kind: NodeType,
+    pub left: ExprWrapper,
+    pub right: ExprWrapper,
+    pub operator: String
+}
+
+impl Stmt for ComparativeExpr {
+    fn get_kind(&self) -> NodeType {
+        self.get_expr_kind()
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        Some(self.get_expr_value().unwrap())
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+impl Expr for ComparativeExpr {
     fn get_expr_kind(&self) -> NodeType {
         self.kind
     }
@@ -577,6 +620,31 @@ pub struct ReturnStmt {
 }
 
 impl Stmt for ReturnStmt {
+    fn get_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct IfStmt {
+    pub kind: NodeType,
+    pub condition: ExprWrapper,
+    pub body: Vec<StmtWrapper>
+}
+
+impl Stmt for IfStmt {
     fn get_kind(&self) -> NodeType {
         self.kind
     }

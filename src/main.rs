@@ -8,6 +8,7 @@ use interpreter::runtime::values::BooleanValue;
 use interpreter::runtime::values::NullValue;
 use interpreter::runtime::values::NumberValue;
 use interpreter::frontend::ast::StmtWrapper;
+use interpreter::MK_BOOL;
 use std::fs;
 use std::io;
 use std::io::Write;

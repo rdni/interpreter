@@ -14,6 +14,7 @@ pub enum TokenType {
     Const,
     Function,
     Return,
+    If,
 
     Comma,
     Colon,
@@ -26,6 +27,8 @@ pub enum TokenType {
     CloseBracket,
     BinaryOperator,
     Equals,
+    RightAngleBracket,
+    LeftAngleBracket,
 
     EOF, // End of file
 }
@@ -56,6 +59,7 @@ impl Tokenizer {
         keywords.insert("const", TokenType::Const);
         keywords.insert("function", TokenType::Function);
         keywords.insert("return", TokenType::Return);
+        keywords.insert("if", TokenType::If);
 
         keywords
     }
@@ -98,6 +102,10 @@ impl Tokenizer {
                 token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::BinaryOperator });
             } else if src[0] == '=' {
                 token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Equals });
+            } else if src[0] == '<' {
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::LeftAngleBracket });
+            } else if src[0] == '>' {
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::RightAngleBracket });
             } else if src[0] == ';' {
                 token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Semicolon });
             } else if src[0] == '"' {

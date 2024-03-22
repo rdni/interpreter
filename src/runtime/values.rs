@@ -36,6 +36,8 @@ pub trait RuntimeValue: Debug + Any + 'static {
     fn as_any(&self) -> &dyn Any;
     fn clone_self(&self) -> Box<dyn RuntimeValue>;
     fn to_string(&self) -> String;
+    fn as_bool(&self) -> bool;
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool;
 }
 
 impl Clone for Box<dyn RuntimeValue> {
@@ -66,6 +68,12 @@ impl RuntimeValue for BooleanValue {
             String::from("false")
         }
     }
+    fn as_bool(&self) -> bool {
+        self.value
+    }
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        self.value == other.as_any().downcast_ref::<BooleanValue>().unwrap().value
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -83,6 +91,12 @@ impl RuntimeValue for NullValue {
     }
     fn to_string(&self) -> String {
         String::from("null")
+    }
+    fn as_bool(&self) -> bool {
+        false
+    }
+    fn equals(&self, _other: Box<dyn RuntimeValue>) -> bool {
+        true
     }
 }
 
@@ -107,6 +121,12 @@ impl RuntimeValue for NumberValue {
         } else {
             String::from(self.value.to_string())
         }
+    }
+    fn as_bool(&self) -> bool {
+        self.value != 0.0
+    }
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        self.value == other.as_any().downcast_ref::<NumberValue>().unwrap().value
     }
 }
 
@@ -139,6 +159,16 @@ impl RuntimeValue for ObjectValue {
         value.push('}');
         
         value
+    }
+    fn as_bool(&self) -> bool {
+        self.properties.len() != 0
+    }
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        let other = other.as_any().downcast_ref::<ObjectValue>().unwrap();
+        if self.properties.len() != other.properties.len() {
+            return false;
+        }
+        self.to_string() == other.to_string()
     }
 }
 
@@ -178,6 +208,12 @@ impl RuntimeValue for NativeFnValue {
     fn to_string(&self) -> String {
         String::from("NativeFn")
     }
+    fn as_bool(&self) -> bool {
+        true
+    }
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        Rc::ptr_eq(&self.call.func, &other.as_any().downcast_ref::<NativeFnValue>().unwrap().call.func)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -197,6 +233,12 @@ impl RuntimeValue for StringValue {
     }
     fn to_string(&self) -> String {
         self.value.clone()
+    }
+    fn as_bool(&self) -> bool {
+        self.value.len() != 0
+    }
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        self.value == other.as_any().downcast_ref::<StringValue>().unwrap().value
     }
 }
 
@@ -245,6 +287,14 @@ impl RuntimeValue for FunctionValue {
     }
     fn to_string(&self) -> String {
         self.name.clone()
+    }
+    fn as_bool(&self) -> bool {
+        true
+    }
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        let other = other.as_any().downcast_ref::<FunctionValue>().unwrap();
+
+        Arc::ptr_eq(&other.declaration_env, &self.declaration_env)
     }
 }
 

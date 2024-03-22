@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::fatal_error;
 use crate::runtime::values::{FunctionValue, NullValue, RuntimeValue};
-use crate::frontend::ast::{Expr, FunctionDeclaration, Program, ReturnStmt, VarDeclaration};
+use crate::frontend::ast::{Expr, FunctionDeclaration, IfStmt, Program, ReturnStmt, VarDeclaration};
 
 use crate::runtime::interpreter::eval;
 use crate::runtime::environment::Environment;
@@ -45,4 +45,16 @@ pub fn eval_return(return_stmt: ReturnStmt, env: Arc<Mutex<Environment>>) -> Box
     env.lock().unwrap().continue_interpreting = false;
     
     return_value
+}
+
+pub fn eval_if(if_stmt: IfStmt, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    let condition = eval(if_stmt.condition.to_stmt_from_expr(), Arc::clone(&env));
+
+    if condition.as_bool() {
+        for stmt in if_stmt.body {
+            eval(stmt, Arc::clone(&env));
+        }
+    }
+
+    Box::new(NullValue {})
 }

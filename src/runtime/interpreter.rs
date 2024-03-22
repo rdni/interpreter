@@ -1,8 +1,8 @@
 use std::sync::{Arc, Mutex};
 
-use crate::fatal_error;
+use crate::{fatal_error, MK_NUMBER, MK_STRING};
 use crate::runtime::values::{NumberValue, RuntimeValue};
-use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, FunctionDeclaration, Identifier, MemberExpr, NodeType, ObjectLiteral, Program, ReturnStmt, Stmt, StmtValue, StmtWrapper, VarDeclaration};
+use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, FunctionDeclaration, Identifier, IfStmt, MemberExpr, NodeType, ObjectLiteral, Program, ReturnStmt, Stmt, StmtValue, StmtWrapper, VarDeclaration};
 
 use super::environment::Environment;
 use super::values::StringValue;
@@ -14,17 +14,17 @@ pub fn eval(ast_node: StmtWrapper, env: Arc<Mutex<Environment>>) -> Box<dyn Runt
     match ast_node.get_kind() {
         // Handle expressions
         NodeType::NumericLiteral => {
-            Box::new(NumberValue {
-                value: if let StmtValue::F64(val) = ast_node.get_value().unwrap() { val } else { 0.0 as f64}
-        })},
+            Box::new(MK_NUMBER!(if let StmtValue::F64(val) = ast_node.get_value().unwrap() { val } else { 0.0 as f64}))},
         NodeType::String => {
-            Box::new(StringValue {
-                value: if let StmtValue::StringVal(val) = ast_node.get_value().unwrap() { val } else { String::new() }
-        })},
+            Box::new(MK_STRING!(if let StmtValue::StringVal(val) = ast_node.get_value().unwrap() { val } else { String::new() }))},
         NodeType::BinaryExpr => {
             let bin_expr = ast_node.as_any().downcast_ref::<BinaryExpr>().expect("Failed to downcast to BinaryExpr.");
             eval_binop_expr(bin_expr.clone(), env)
         },
+        NodeType::ComparativeExpr => {
+            let comp_expr = ast_node.as_any().downcast_ref::<ComparativeExpr>().expect("Failed to downcast to ComparativeExpr.");
+            eval_comp_expr(comp_expr.clone(), env)
+        }
         NodeType::Identifier => {
             let identifier = ast_node.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.");
             let value = eval_identifier(identifier.clone(), Arc::clone(&env));
@@ -64,6 +64,10 @@ pub fn eval(ast_node: StmtWrapper, env: Arc<Mutex<Environment>>) -> Box<dyn Runt
         NodeType::Return => {
             let return_stmt = ast_node.as_any().downcast_ref::<ReturnStmt>().expect("Failed to downcast to ReturnStmt");
             eval_return(return_stmt.clone(), env)
+        },
+        NodeType::If => {
+            let if_stmt = ast_node.as_any().downcast_ref::<IfStmt>().expect("Failed to downcast to IfStmt");
+            eval_if(if_stmt.clone(), env)
         },
         NodeType::Program => {
             let program = ast_node.as_any().downcast_ref::<Program>().expect("Failed to downcast to Program.");

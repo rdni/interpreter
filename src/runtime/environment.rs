@@ -2,41 +2,21 @@ use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
-use crate::fatal_error;
+use crate::{fatal_error, MK_BOOL, MK_NATIVE_FN, MK_NULL};
 
 use super::values::{BooleanValue, FunctionCall, NativeFnValue, NullValue, RuntimeValue};
 use super::native_funcs::{native_exit, native_input, native_print, native_sleep, native_time};
 
 pub fn setup_scope(env: &mut Environment) {
-    env.declare_var(String::from("null"), Box::new(NullValue {}), true);
-    env.declare_var(String::from("true"), Box::new(BooleanValue { value: true }), true);
-    env.declare_var(String::from("false"), Box::new(BooleanValue { value: false }), true);
+    env.declare_var(String::from("null"), Box::new(MK_NULL!()), true);
+    env.declare_var(String::from("true"), Box::new(MK_BOOL!(true)), true);
+    env.declare_var(String::from("false"), Box::new(MK_BOOL!(false)), true);
 
-    env.declare_var(String::from("print"), Box::new(NativeFnValue {
-        call: FunctionCall {
-            func: Rc::new(native_print)
-        }
-    }), true);
-    env.declare_var(String::from("time"), Box::new(NativeFnValue {
-        call: FunctionCall {
-            func: Rc::new(native_time)
-        }
-    }), true);
-    env.declare_var(String::from("sleep"), Box::new(NativeFnValue {
-        call: FunctionCall {
-            func: Rc::new(native_sleep)
-        }
-    }), true);
-    env.declare_var(String::from("input"), Box::new(NativeFnValue {
-        call: FunctionCall {
-            func: Rc::new(native_input)
-        }
-    }), true);
-    env.declare_var(String::from("exit"), Box::new(NativeFnValue {
-        call: FunctionCall {
-            func: Rc::new(native_exit)
-        }
-    }), true);
+    env.declare_var(String::from("print"), Box::new(MK_NATIVE_FN!(native_print)), true);
+    env.declare_var(String::from("time"), Box::new(MK_NATIVE_FN!(native_time)), true);
+    env.declare_var(String::from("sleep"), Box::new(MK_NATIVE_FN!(native_sleep)), true);
+    env.declare_var(String::from("input"), Box::new(MK_NATIVE_FN!(native_input)), true);
+    env.declare_var(String::from("exit"), Box::new(MK_NATIVE_FN!(native_exit)), true);
 }
 
 #[derive(Debug, Clone)]
@@ -105,11 +85,6 @@ impl Environment {
     }
 }
 
-// Entirely here because I can't be bothered to make a better solution
-pub enum EnvResolveResult<'a> {
-    MutRef(&'a mut Environment),
-    ArcMutex(Arc<Mutex<Environment>>)
-}
 
 pub struct SharedEnvironment(pub Arc<Mutex<Environment>>);
 

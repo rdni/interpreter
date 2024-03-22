@@ -1,11 +1,11 @@
 use crate::frontend::ast::{
-    AssignmentExpr, BinaryExpr, CallExpr, Expr, ExprWrapper, FunctionDeclaration, Identifier, NodeType, NumericLiteral, ObjectLiteral, Program, Property, Stmt, StmtWrapper, VarDeclaration
+    AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, Expr, ExprWrapper, FunctionDeclaration, Identifier, NodeType, NumericLiteral, ObjectLiteral, Program, Property, Stmt, StmtWrapper, VarDeclaration
 };
 use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
 
 
-use super::ast::{MemberExpr, ReturnStmt, StringLiteral};
+use super::ast::{IfStmt, MemberExpr, ReturnStmt, StringLiteral};
 
 pub struct Parser {
     pub tokens: Vec<Token>
@@ -30,8 +30,28 @@ impl Parser {
         program
     }
 
+    fn at_comparative_expr(&self) -> bool {
+        let token1 = self.at().get_token_type();
+        let token2 = self.look_ahead(1).get_token_type();
+
+        // ==
+        if token1 == TokenType::Equals && token2 == TokenType::Equals {
+            return true;
+        }
+        // >=
+        if token1 == TokenType::RightAngleBracket && token2 == TokenType::LeftAngleBracket {
+            return true;
+        }
+
+        false
+    }
+
     fn at(&self) -> &Token {
         &self.tokens[0]
+    }
+
+    fn look_ahead(&self, amount: usize) -> &Token {
+        &self.tokens[amount]
     }
 
     fn eat(&mut self) -> Token {
@@ -62,6 +82,7 @@ impl Parser {
             TokenType::Const => Some(self.parse_var_declaration()),
             TokenType::Function => Some(self.parse_function_declaration()),
             TokenType::Return => Some(self.parse_return()),
+            TokenType::If => Some(self.parse_if()),
             TokenType::Semicolon => {
                 self.eat();
                 if self.not_eof() && self.at().get_token_type() != TokenType::CloseBrace {
@@ -72,6 +93,31 @@ impl Parser {
             }
             _ => Some(self.parse_expr().to_stmt_from_expr())
         }
+    }
+
+    fn parse_if(&mut self) -> StmtWrapper {
+        self.eat();
+
+        let condition = self.parse_comparative_expr();
+        
+        self.eat_expect(TokenType::OpenBrace, "Expected statement body", LoggingLevel::Fatal);
+
+        let mut body = Vec::new();
+
+        while self.at().get_token_type() != TokenType::CloseBrace && self.at().get_token_type() != TokenType::EOF {
+            let stmt = self.parse_stmt();
+            if let Some(v) = stmt {
+                body.push(v);
+            }
+        }
+
+        self.eat_expect(TokenType::CloseBrace, "Expected closing brace in statement body", LoggingLevel::Fatal);
+
+        StmtWrapper::new(Box::new(IfStmt {
+            kind: NodeType::If,
+            condition,
+            body
+        }))
     }
 
     fn parse_return(&mut self) -> StmtWrapper {
@@ -163,7 +209,7 @@ impl Parser {
     }
 
     fn parse_assignment_expr(&mut self) -> ExprWrapper {
-        let left = self.parse_object_expr();
+        let left = self.parse_comparative_expr();
         
         if self.at().get_token_type() == TokenType::Equals {
             self.eat();
@@ -248,6 +294,29 @@ impl Parser {
             }
             _ => fatal_error(&format!("Unexpected token found during parsing: {:?}", self.at()))
         }
+    }
+
+    fn parse_comparative_expr(&mut self) -> ExprWrapper {
+        let mut left = self.parse_object_expr();
+        
+        if !self.not_eof() {
+            return left;
+        }
+
+        while self.at().get_token_type() == TokenType::Equals && self.look_ahead(1).get_token_type() == TokenType::Equals {
+            let operator = self.eat().value.unwrap() + &self.eat().value.unwrap();
+
+            let right = self.parse_object_expr();
+
+            left = ExprWrapper::new(Box::new(ComparativeExpr {
+                kind: NodeType::ComparativeExpr,
+                left,
+                right,
+                operator
+            }));
+        }
+
+        left
     }
 
     fn parse_additive_expr(&mut self) -> ExprWrapper {
