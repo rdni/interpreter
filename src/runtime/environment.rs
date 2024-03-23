@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use crate::{fatal_error, MK_BOOL, MK_NATIVE_FN, MK_NULL};
 
 use super::values::{BooleanValue, FunctionCall, NativeFnValue, NullValue, RuntimeValue};
-use super::native_funcs::{native_exit, native_input, native_print, native_sleep, native_time};
+use super::native_funcs::{native_exit, native_input, native_print, native_sleep, native_time, to_int, to_string};
 
 pub fn setup_scope(env: &mut Environment) {
     env.declare_var(String::from("null"), Box::new(MK_NULL!()), true);
@@ -17,6 +17,9 @@ pub fn setup_scope(env: &mut Environment) {
     env.declare_var(String::from("sleep"), Box::new(MK_NATIVE_FN!(native_sleep)), true);
     env.declare_var(String::from("input"), Box::new(MK_NATIVE_FN!(native_input)), true);
     env.declare_var(String::from("exit"), Box::new(MK_NATIVE_FN!(native_exit)), true);
+
+    env.declare_var(String::from("str"), Box::new(MK_NATIVE_FN!(to_string)), true);
+    env.declare_var(String::from("int"), Box::new(MK_NATIVE_FN!(to_int)), true);
 }
 
 #[derive(Debug, Clone)]
@@ -114,7 +117,7 @@ impl SharedEnvironment {
 
         let is_constant = env.lock().unwrap().get_constants().contains(&varname);
 
-        if !is_constant {
+        if is_constant {
             fatal_error("Cannot re-assign a constant variable.");
         }
 

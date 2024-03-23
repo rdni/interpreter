@@ -10,7 +10,7 @@ use crate::runtime::environment::Environment;
 pub fn eval_program(program: Program, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
     let mut last_evaluated: Box<dyn RuntimeValue> = Box::new(NullValue {});
 
-    for statement in program.body {
+    for statement in program.body.body {
         last_evaluated = eval(statement, Arc::clone(&env));
     }
     
@@ -51,7 +51,11 @@ pub fn eval_if(if_stmt: IfStmt, env: Arc<Mutex<Environment>>) -> Box<dyn Runtime
     let condition = eval(if_stmt.condition.to_stmt_from_expr(), Arc::clone(&env));
 
     if condition.as_bool() {
-        for stmt in if_stmt.body {
+        for stmt in if_stmt.body.body {
+            eval(stmt, Arc::clone(&env));
+        }
+    } else if let Some(v) = if_stmt.else_stmt {
+        for stmt in v.body {
             eval(stmt, Arc::clone(&env));
         }
     }

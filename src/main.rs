@@ -47,7 +47,10 @@ fn main() {
         } else {
             let ast = program.produce_ast(input);
             // println!("AST: {:?}", ast);
-            println!("{}", &eval(StmtWrapper::new(Box::new(ast)), Arc::clone(&env)).to_string());
+            let result = &eval(StmtWrapper::new(Box::new(ast)), Arc::clone(&env)).to_string();
+            if result != "null" {
+                println!("{}", result);
+            }
         }
     }
 

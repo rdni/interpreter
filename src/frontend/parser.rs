@@ -5,7 +5,7 @@ use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
 
 
-use super::ast::{IfStmt, MemberExpr, ReturnStmt, StringLiteral};
+use super::ast::{Body, IfStmt, MemberExpr, ReturnStmt, StringLiteral};
 
 pub struct Parser {
     pub tokens: Vec<Token>
@@ -15,35 +15,62 @@ impl Parser {
     pub fn produce_ast(&mut self, source_code: String) -> Program {
         self.tokens = Tokenizer {}.tokenize(source_code);
 
-        let mut program = Program {
-            kind: NodeType::Program,
-            body: Vec::new()
-        };
+        let mut body = Vec::new();
 
         while self.not_eof() {
             let stmt = self.parse_stmt();
             if let Some(v) = stmt {
-                program.body.push(v);
+                body.push(v);
             }
         }
 
-        program
+        let body = Body {
+            kind: NodeType::Body,
+            body
+        };
+
+        Program {
+            kind: NodeType::Program,
+            body,
+        }
     }
 
-    fn at_comparative_expr(&self) -> bool {
+    fn at_comparative_expr(&self) -> Option<usize> {
+
         let token1 = self.at().get_token_type();
+        
+        if token1 == TokenType::EOF {
+            return None;
+        }
+
         let token2 = self.look_ahead(1).get_token_type();
 
         // ==
         if token1 == TokenType::Equals && token2 == TokenType::Equals {
-            return true;
+            return Some(2);
         }
         // >=
-        if token1 == TokenType::RightAngleBracket && token2 == TokenType::LeftAngleBracket {
-            return true;
+        if token1 == TokenType::RightAngleBracket && token2 == TokenType::Equals {
+            return Some(2);
+        }
+        // <=
+        if token1 == TokenType::LeftAngleBracket && token2 == TokenType::Equals {
+            return Some(2);
+        }
+        // !=
+        if token1 == TokenType::Bang && token2 == TokenType::Equals {
+            return Some(2);
+        }
+        // <
+        if token1 == TokenType::LeftAngleBracket {
+            return Some(1);
+        }
+        // >
+        if token1 == TokenType::RightAngleBracket {
+            return Some(1);
         }
 
-        false
+        None
     }
 
     fn at(&self) -> &Token {
@@ -90,8 +117,29 @@ impl Parser {
                 } else {
                     None
                 }
-            }
+            },
+            TokenType::OpenBrace => Some(StmtWrapper::new(Box::new(self.parse_body()))),
             _ => Some(self.parse_expr().to_stmt_from_expr())
+        }
+    }
+
+    fn parse_body(&mut self) -> Body {
+        self.eat_expect(TokenType::OpenBrace, "Expected statement body", LoggingLevel::Fatal);
+
+        let mut body = vec![];
+        while self.at().get_token_type() != TokenType::CloseBrace && self.not_eof() {
+            if let Some(v) = self.parse_stmt() {
+                body.push(v);
+            } else {
+                break
+            }
+        }
+
+        self.eat_expect(TokenType::CloseBrace, "Expected closing brace in body", LoggingLevel::Fatal);
+
+        Body {
+            kind: NodeType::Body,
+            body
         }
     }
 
@@ -100,23 +148,28 @@ impl Parser {
 
         let condition = self.parse_comparative_expr();
         
-        self.eat_expect(TokenType::OpenBrace, "Expected statement body", LoggingLevel::Fatal);
+        let body = self.parse_body();
 
-        let mut body = Vec::new();
-
-        while self.at().get_token_type() != TokenType::CloseBrace && self.at().get_token_type() != TokenType::EOF {
-            let stmt = self.parse_stmt();
-            if let Some(v) = stmt {
-                body.push(v);
+        let mut else_stmt = None;
+        // Check for else / else if
+        if self.at().get_token_type() == TokenType::Else {
+            self.eat();
+            if self.at().get_token_type() == TokenType::OpenBrace {
+                else_stmt = Some(self.parse_body())
+            } else if self.at().get_token_type() == TokenType::If {
+                let if_stmt = self.parse_if();
+                else_stmt = Some(Body {
+                    kind: NodeType::Body,
+                    body: vec![if_stmt]
+                });
             }
         }
-
-        self.eat_expect(TokenType::CloseBrace, "Expected closing brace in statement body", LoggingLevel::Fatal);
 
         StmtWrapper::new(Box::new(IfStmt {
             kind: NodeType::If,
             condition,
-            body
+            body,
+            else_stmt
         }))
     }
 
@@ -149,24 +202,13 @@ impl Parser {
             }
         }
         
-        self.eat_expect(TokenType::OpenBrace, "Expected function body", LoggingLevel::Fatal);
-
-        let mut body = Vec::new();
-
-        while self.at().get_token_type() != TokenType::CloseBrace && self.at().get_token_type() != TokenType::EOF {
-            let stmt = self.parse_stmt();
-            if let Some(v) = stmt {
-                body.push(v);
-            }
-        }
-
-        self.eat_expect(TokenType::CloseBrace, "Expected closing brace in function body", LoggingLevel::Fatal);
+        let body = self.parse_body();
 
         return StmtWrapper::new(Box::new(FunctionDeclaration { 
             kind: NodeType::FunctionDeclaration,
             parameters: params,
             name,
-            body
+            body,
         }));
     }
 
@@ -291,7 +333,7 @@ impl Parser {
                 let value = self.parse_expr();
                 self.eat_expect(TokenType::CloseParen, "Unexpected token found inside parenthesis.", LoggingLevel::Fatal);
                 value
-            }
+            },
             _ => fatal_error(&format!("Unexpected token found during parsing: {:?}", self.at()))
         }
     }
@@ -299,12 +341,16 @@ impl Parser {
     fn parse_comparative_expr(&mut self) -> ExprWrapper {
         let mut left = self.parse_object_expr();
         
-        if !self.not_eof() {
+        if !self.not_eof() && !self.at_comparative_expr().is_none() {
             return left;
         }
 
-        while self.at().get_token_type() == TokenType::Equals && self.look_ahead(1).get_token_type() == TokenType::Equals {
-            let operator = self.eat().value.unwrap() + &self.eat().value.unwrap();
+        while self.at_comparative_expr().is_some() && self.not_eof() {
+            let mut operator = String::new();
+
+            for _ in 0..(self.at_comparative_expr().unwrap()) {
+                operator += &self.eat().value.unwrap()
+            }
 
             let right = self.parse_object_expr();
 

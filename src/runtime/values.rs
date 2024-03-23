@@ -1,6 +1,6 @@
 use std::{any::Any, collections::HashMap, fmt::{Debug, Display}, rc::Rc, sync::{Arc, Mutex}};
 
-use crate::{fatal_error, frontend::ast::StmtWrapper, pad_each_line, runtime::interpreter::eval};
+use crate::{fatal_error, frontend::ast::Body, pad_each_line, runtime::interpreter::eval};
 
 use super::environment::Environment;
 
@@ -38,6 +38,12 @@ pub trait RuntimeValue: Debug + Any + 'static {
     fn to_string(&self) -> String;
     fn as_bool(&self) -> bool;
     fn equals(&self, other: Box<dyn RuntimeValue>) -> bool;
+    fn less_than(&self, _other: Box<dyn RuntimeValue>) -> bool {
+        fatal_error("Cannot compare with this operator");
+    }
+    fn greater_than(&self, _other: Box<dyn RuntimeValue>) -> bool {
+        fatal_error("Cannot compare with this operator");
+    }
 }
 
 impl Clone for Box<dyn RuntimeValue> {
@@ -127,6 +133,12 @@ impl RuntimeValue for NumberValue {
     }
     fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
         self.value == other.as_any().downcast_ref::<NumberValue>().unwrap().value
+    }
+    fn greater_than(&self, other: Box<dyn RuntimeValue>) -> bool {
+        self.value > other.as_any().downcast_ref::<NumberValue>().unwrap().value
+    }
+    fn less_than(&self, other: Box<dyn RuntimeValue>) -> bool {
+        self.value < other.as_any().downcast_ref::<NumberValue>().unwrap().value
     }
 }
 
@@ -247,7 +259,7 @@ pub struct FunctionValue {
     pub name: String,
     pub parameters: Vec<String>,
     pub declaration_env: Arc<Mutex<Environment>>,
-    pub body: Vec<StmtWrapper>
+    pub body: Body
 }
 
 impl FunctionValue {
@@ -263,7 +275,7 @@ impl FunctionValue {
         }
 
         let mut last_evaluated: Box<dyn RuntimeValue> = Box::new(NullValue {});
-        for stmt in self.body.clone() {
+        for stmt in self.body.body.clone() {
             if new_env.lock().unwrap().continue_interpreting {
                 last_evaluated = eval(stmt, Arc::clone(&new_env));
             } else {

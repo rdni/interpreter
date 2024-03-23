@@ -3,6 +3,7 @@ use std::{any::Any, fmt::Debug};
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NodeType {
     Program,
+    Body,
 
     // Statements
     VarDeclaration,
@@ -79,7 +80,7 @@ impl Stmt for StmtWrapper {
 #[derive(Debug, Clone)]
 pub struct Program {
     pub kind: NodeType,
-    pub body: Vec<StmtWrapper>
+    pub body: Body
 }
 
 impl Stmt for Program {
@@ -100,6 +101,44 @@ impl Stmt for Program {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct Body {
+    pub kind: NodeType,
+    pub body: Vec<StmtWrapper>
+}
+
+impl Stmt for Body {
+    fn get_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+impl Expr for Body {
+    fn get_expr_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_expr_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(self.clone())
+    }
+    fn to_stmt_from_expr(&self) -> StmtWrapper {
+        StmtWrapper::new(Box::new(self.clone()))
+    }
+}
 
 // var x; means x is undefined
 #[derive(Debug, Clone)]
@@ -133,7 +172,7 @@ pub struct FunctionDeclaration {
     pub kind: NodeType,
     pub parameters: Vec<String>,
     pub name: String,
-    pub body: Vec<StmtWrapper>
+    pub body: Body
 }
 
 impl Stmt for FunctionDeclaration {
@@ -641,7 +680,8 @@ impl Stmt for ReturnStmt {
 pub struct IfStmt {
     pub kind: NodeType,
     pub condition: ExprWrapper,
-    pub body: Vec<StmtWrapper>
+    pub body: Body,
+    pub else_stmt: Option<Body>
 }
 
 impl Stmt for IfStmt {

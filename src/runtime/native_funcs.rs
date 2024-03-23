@@ -1,4 +1,4 @@
-use crate::{fatal_error, runtime::values::NullValue};
+use crate::{fatal_error, runtime::values::NullValue, MK_STRING};
 use std::{io::{self, Write}, process::exit, sync::Mutex, thread, time::{Duration, SystemTime}};
 
 use super::{environment::Environment, values::{NumberValue, RuntimeValue, StringValue, ValueType}};
@@ -77,4 +77,26 @@ pub fn native_exit(args: Vec<Box<dyn RuntimeValue>>, _env: &Mutex<Environment>) 
     }
 
     exit(code);
+}
+
+pub fn to_string(args: Vec<Box<dyn RuntimeValue>>, _env: &Mutex<Environment>) -> Box<dyn RuntimeValue> {
+    if args.len() != 1 {
+        fatal_error(&format!("Expected 1 argument, found {}", args.len()));
+    }
+
+    Box::new(MK_STRING!(args[1].to_string()))
+}
+
+pub fn to_int(args: Vec<Box<dyn RuntimeValue>>, _env: &Mutex<Environment>) -> Box<dyn RuntimeValue> {
+    if args.len() != 1 {
+        fatal_error(&format!("Expected 1 argument, found {}", args.len()));
+    }
+
+    if args[0].get_type() == ValueType::String {
+        return Box::new(NumberValue { value: str::parse::<f64>(&args[0].to_string()).unwrap() });
+    } else if args[0].get_type() == ValueType::Number {
+        return args[0].clone();
+    }
+
+    fatal_error("Cannot convert to number");
 }

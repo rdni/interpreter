@@ -15,6 +15,7 @@ pub enum TokenType {
     Function,
     Return,
     If,
+    Else,
 
     Comma,
     Colon,
@@ -29,6 +30,7 @@ pub enum TokenType {
     Equals,
     RightAngleBracket,
     LeftAngleBracket,
+    Bang,
 
     EOF, // End of file
 }
@@ -60,6 +62,7 @@ impl Tokenizer {
         keywords.insert("function", TokenType::Function);
         keywords.insert("return", TokenType::Return);
         keywords.insert("if", TokenType::If);
+        keywords.insert("else", TokenType::Else);
 
         keywords
     }
@@ -106,6 +109,8 @@ impl Tokenizer {
                 token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::LeftAngleBracket });
             } else if src[0] == '>' {
                 token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::RightAngleBracket });
+            } else if src[0] == '!' {
+                token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Bang });
             } else if src[0] == ';' {
                 token_output.push(Token { value: Some(src.remove(0).to_string()), token_type: TokenType::Semicolon });
             } else if src[0] == '"' {
@@ -121,6 +126,7 @@ impl Tokenizer {
                         match src[0] {
                             '\\' => string.push(src.remove(0)),
                             '\"' => string.push(src.remove(0)),
+                            '\'' => string.push(src.remove(0)),
                             'n' => {
                                 src.remove(0);
                                 string.push('\n');
@@ -128,7 +134,7 @@ impl Tokenizer {
                             't' => {
                                 src.remove(0);
                                 string.push('\t')
-                            }
+                            },
                             _ => fatal_error("Unexpected escaped token.")
                         };
                         escaped = false;

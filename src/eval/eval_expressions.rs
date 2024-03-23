@@ -71,19 +71,77 @@ pub fn eval_string_numeric_binary_expr(string: StringValue, number: NumberValue,
 pub fn eval_comp_expr(comp: ComparativeExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
     let left = eval(comp.left.to_stmt_from_expr(), Arc::clone(&env));
     let right = eval(comp.right.to_stmt_from_expr(), Arc::clone(&env));
-    if comp.operator == "==" {
-        if left.get_type() != right.get_type() {
-            Box::new(MK_BOOL!(false))
-        } else {
-            if left.equals(right) {
+    match &*comp.operator {
+        "==" => {
+            if left.get_type() != right.get_type() {
+                Box::new(MK_BOOL!(false))
+            } else {
+                if left.equals(right) {
+                    Box::new(MK_BOOL!(true))
+                } else {
+                    Box::new(MK_BOOL!(false))
+                }
+            }
+        },
+        ">" => {
+            if left.get_type() != right.get_type() {
+                Box::new(MK_BOOL!(false))
+            } else {
+                if left.greater_than(right) {
+                    Box::new(MK_BOOL!(true))
+                } else {
+                    Box::new(MK_BOOL!(false))
+                }
+            }
+        },
+        "<" => {
+            if left.get_type() != right.get_type() {
+                Box::new(MK_BOOL!(false))
+            } else {
+                if left.less_than(right) {
+                    Box::new(MK_BOOL!(true))
+                } else {
+                    Box::new(MK_BOOL!(false))
+                }
+            }
+        },
+        ">=" => {
+            if left.get_type() != right.get_type() {
+                Box::new(MK_BOOL!(false))
+            } else {
+                if left.greater_than(right.clone()) || left.equals(right) {
+                    Box::new(MK_BOOL!(true))
+                } else {
+                    Box::new(MK_BOOL!(false))
+                }
+            }
+        },
+        "<=" => {
+            if left.get_type() != right.get_type() {
+                Box::new(MK_BOOL!(false))
+            } else {
+                if left.less_than(right.clone()) || left.equals(right) {
+                    Box::new(MK_BOOL!(true))
+                } else {
+                    Box::new(MK_BOOL!(false))
+                }
+            }
+        },
+        "!=" => {
+            if left.get_type() != right.get_type() {
                 Box::new(MK_BOOL!(true))
             } else {
-                Box::new(MK_BOOL!(false))
+                if left.equals(right.clone()) {
+                    Box::new(MK_BOOL!(false))
+                } else {
+                    Box::new(MK_BOOL!(true))
+                }
             }
         }
-    } else {
-        error("Invalid operator in comparative expression.");
-        Box::new(NullValue {})
+        _ => {
+            error("Invalid operator in comparative expression.");
+            Box::new(NullValue {})
+        }
     }
 }
 
