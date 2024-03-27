@@ -1,4 +1,6 @@
-use std::{any::Any, fmt::Debug};
+use std::{any::Any, fmt::Debug, sync::{Arc, Mutex}};
+
+use crate::runtime::{environment::Environment, interpreter::eval, values::{NullValue, RuntimeValue}};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum NodeType {
@@ -10,6 +12,7 @@ pub enum NodeType {
     FunctionDeclaration,
     Return,
     If,
+    While,
 
     // Expressions
     Identifier,
@@ -24,6 +27,7 @@ pub enum NodeType {
     NullLiteral,
     Property,
     Object,
+    List,
     String
 }
 
@@ -104,7 +108,7 @@ impl Stmt for Program {
 #[derive(Debug, Clone)]
 pub struct Body {
     pub kind: NodeType,
-    pub body: Vec<StmtWrapper>
+    body: Vec<StmtWrapper>
 }
 
 impl Stmt for Body {
@@ -137,6 +141,35 @@ impl Expr for Body {
     }
     fn to_stmt_from_expr(&self) -> StmtWrapper {
         StmtWrapper::new(Box::new(self.clone()))
+    }
+}
+
+impl Body {
+    pub fn new(body: Vec<StmtWrapper>) -> Self {
+        Body {
+            body,
+            kind: NodeType::Body
+        }
+    }
+
+    pub fn run(&self, env: Arc<Mutex<Environment>>, make_env: bool) -> (Box<dyn RuntimeValue>, Arc<Mutex<Environment>>) {
+        if make_env {
+            let new_env = Arc::new(Mutex::new(Environment::new(Some(Arc::clone(&env)))));
+
+            let mut last_value: Box<dyn RuntimeValue> = Box::new(NullValue {});
+            for stmt in self.body.iter() {
+                last_value = eval(stmt.clone(), Arc::clone(&new_env));
+            }
+
+            (last_value, new_env)
+        } else {
+            let mut last_value: Box<dyn RuntimeValue> = Box::new(NullValue {});
+            for stmt in self.body.iter() {
+                last_value = eval(stmt.clone(), Arc::clone(&env));
+            }
+
+            (last_value, env)
+        }
     }
 }
 
@@ -533,6 +566,45 @@ impl Expr for ObjectLiteral {
 }
 
 #[derive(Debug, Clone)]
+pub struct ListLiteral {
+    pub kind: NodeType,
+    pub elements: Vec<ExprWrapper>
+}
+
+impl Stmt for ListLiteral {
+    fn get_kind(&self) -> NodeType {
+        self.get_expr_kind()
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        Some(self.get_expr_value().unwrap())
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+impl Expr for ListLiteral {
+    fn get_expr_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_expr_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_box(&self) -> Box<dyn Expr> {
+        Box::new(self.clone())
+    }
+    fn to_stmt_from_expr(&self) -> StmtWrapper {
+        StmtWrapper::new(Box::new(self.clone()))
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CallExpr {
     pub kind: NodeType,
     pub args: Vec<ExprWrapper>,
@@ -685,6 +757,31 @@ pub struct IfStmt {
 }
 
 impl Stmt for IfStmt {
+    fn get_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct WhileStmt {
+    pub kind: NodeType,
+    pub condition: ExprWrapper,
+    pub body: Body
+}
+
+impl Stmt for WhileStmt {
     fn get_kind(&self) -> NodeType {
         self.kind
     }

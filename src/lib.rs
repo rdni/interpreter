@@ -1,8 +1,6 @@
 // var x = 45;
 // [ VarToken, IdentifierToken, EqualsToken, NumberToken, SemicolonToken ]
 
-#![allow(dead_code)]
-
 pub mod frontend;
 pub mod runtime;
 pub mod eval;
@@ -34,6 +32,14 @@ fn fatal_error(information: &str) -> ! {
 
 fn is_skippable(src: char) -> bool {
     src == ' ' || src == '\n' || src == '\t' || src == '\r'
+}
+
+fn is_valid_ident_char_start(src: char) -> bool {
+    src.is_ascii_alphabetic() || src == '_'
+}
+
+fn is_valid_ident_char(src: char) -> bool {
+    src.is_ascii_alphanumeric() || src == '_'
 }
 
 fn pad_each_line(amount: usize, string: String) -> String {

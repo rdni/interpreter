@@ -1,6 +1,6 @@
 use std::{any::Any, collections::HashMap, fmt::{Debug, Display}, rc::Rc, sync::{Arc, Mutex}};
 
-use crate::{fatal_error, frontend::ast::Body, pad_each_line, runtime::interpreter::eval};
+use crate::{fatal_error, frontend::ast::Body, pad_each_line};
 
 use super::environment::Environment;
 
@@ -11,6 +11,7 @@ pub enum ValueType {
     String,
     Boolean,
     Object,
+    List,
     NativeFn,
     Function
 }
@@ -23,6 +24,7 @@ impl Display for ValueType {
             Self::Null => write!(f, "null"),
             Self::Number => write!(f, "number"),
             Self::Object => write!(f, "object"),
+            Self::List => write!(f, "list"),
             Self::String => write!(f, "string"),
             Self::Function => write!(f, "function")
         }?;
@@ -184,6 +186,57 @@ impl RuntimeValue for ObjectValue {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct ListValue {
+    pub elements: Vec<Box<dyn RuntimeValue>>
+}
+
+impl RuntimeValue for ListValue {
+    fn get_type(&self) -> ValueType {
+        ValueType::List
+    }
+    
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn clone_self(&self) -> Box<dyn RuntimeValue> {
+        Box::new(self.clone())
+    }
+
+    fn to_string(&self) -> String {
+        let mut value = String::new();
+
+        value.push('[');
+
+        let mut first = true;
+        for property in self.elements.iter() {
+            if !first {
+                value.push_str(", ");
+            } else {
+                first = false;
+            }
+            value += &format!("{}", property.to_string());
+        }
+        
+        value.push(']');
+        
+        value
+    }
+
+    fn as_bool(&self) -> bool {
+        self.elements.len() != 0
+    }
+
+    fn equals(&self, other: Box<dyn RuntimeValue>) -> bool {
+        let other = other.as_any().downcast_ref::<ObjectValue>().unwrap();
+        if self.elements.len() != other.properties.len() {
+            return false;
+        }
+        self.to_string() == other.to_string()
+    }
+}
+
 pub struct FunctionCall {
     pub func: Rc<dyn Fn(Vec<Box<dyn RuntimeValue>>, &Mutex<Environment>) -> Box<dyn RuntimeValue> + 'static>,
 }
@@ -274,16 +327,7 @@ impl FunctionValue {
             new_env.lock().unwrap().declare_var(self.parameters[i].clone(), args.get(i).unwrap().clone(), false);
         }
 
-        let mut last_evaluated: Box<dyn RuntimeValue> = Box::new(NullValue {});
-        for stmt in self.body.body.clone() {
-            if new_env.lock().unwrap().continue_interpreting {
-                last_evaluated = eval(stmt, Arc::clone(&new_env));
-            } else {
-                break;
-            }
-        }
-
-        return last_evaluated;
+        self.body.run(env, true).0
     }
 }
 

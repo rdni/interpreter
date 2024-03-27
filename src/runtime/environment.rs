@@ -8,6 +8,9 @@ use super::values::{BooleanValue, FunctionCall, NativeFnValue, NullValue, Runtim
 use super::native_funcs::{native_exit, native_input, native_print, native_sleep, native_time, to_int, to_string};
 
 pub fn setup_scope(env: &mut Environment) {
+    // DEBUG ONLY
+    env.declare_var(String::from("debug"), Box::new(MK_BOOL!(false)), false);
+
     env.declare_var(String::from("null"), Box::new(MK_NULL!()), true);
     env.declare_var(String::from("true"), Box::new(MK_BOOL!(true)), true);
     env.declare_var(String::from("false"), Box::new(MK_BOOL!(false)), true);
@@ -24,10 +27,10 @@ pub fn setup_scope(env: &mut Environment) {
 
 #[derive(Debug, Clone)]
 pub struct Environment {
-    parent: Option<Arc<Mutex<Environment>>>,
-    variables: HashMap<String, Box<dyn RuntimeValue>>,
-    constants: Vec<String>,
-    position: usize,
+    pub parent: Option<Arc<Mutex<Environment>>>,
+    pub variables: HashMap<String, Box<dyn RuntimeValue>>,
+    pub constants: Vec<String>,
+    pub position: usize,
     pub continue_interpreting: bool
 }
 
@@ -90,7 +93,6 @@ impl Environment {
 
 
 pub struct SharedEnvironment(pub Arc<Mutex<Environment>>);
-
 
 impl SharedEnvironment {
     pub fn resolve(&mut self, varname: &String) -> Arc<Mutex<Environment>> {

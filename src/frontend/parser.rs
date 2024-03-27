@@ -5,7 +5,7 @@ use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
 
 
-use super::ast::{Body, IfStmt, MemberExpr, ReturnStmt, StringLiteral};
+use super::ast::{Body, IfStmt, ListLiteral, MemberExpr, ReturnStmt, StringLiteral, WhileStmt};
 
 pub struct Parser {
     pub tokens: Vec<Token>
@@ -24,10 +24,7 @@ impl Parser {
             }
         }
 
-        let body = Body {
-            kind: NodeType::Body,
-            body
-        };
+        let body = Body::new(body);
 
         Program {
             kind: NodeType::Program,
@@ -110,6 +107,7 @@ impl Parser {
             TokenType::Function => Some(self.parse_function_declaration()),
             TokenType::Return => Some(self.parse_return()),
             TokenType::If => Some(self.parse_if()),
+            TokenType::While => Some(self.parse_while()),
             TokenType::Semicolon => {
                 self.eat();
                 if self.not_eof() && self.at().get_token_type() != TokenType::CloseBrace {
@@ -137,10 +135,7 @@ impl Parser {
 
         self.eat_expect(TokenType::CloseBrace, "Expected closing brace in body", LoggingLevel::Fatal);
 
-        Body {
-            kind: NodeType::Body,
-            body
-        }
+        Body::new(body)
     }
 
     fn parse_if(&mut self) -> StmtWrapper {
@@ -158,10 +153,7 @@ impl Parser {
                 else_stmt = Some(self.parse_body())
             } else if self.at().get_token_type() == TokenType::If {
                 let if_stmt = self.parse_if();
-                else_stmt = Some(Body {
-                    kind: NodeType::Body,
-                    body: vec![if_stmt]
-                });
+                else_stmt = Some(Body::new(vec![if_stmt]));
             }
         }
 
@@ -170,6 +162,21 @@ impl Parser {
             condition,
             body,
             else_stmt
+        }))
+    }
+
+    // for 
+    fn parse_while(&mut self) -> StmtWrapper {
+        self.eat();
+
+        let condition = self.parse_expr();
+
+        let body = self.parse_body();
+
+        StmtWrapper::new(Box::new(WhileStmt {
+            kind: NodeType::While,
+            condition,
+            body
         }))
     }
 
@@ -270,6 +277,32 @@ impl Parser {
         left
     }
 
+    fn parse_list_expr(&mut self) -> ExprWrapper {
+        if self.at().get_token_type() != TokenType::OpenBracket {
+            return self.parse_object_expr();
+        }
+
+        self.eat();
+
+        let mut elements = Vec::new();
+
+        while self.not_eof() && self.at().get_token_type() != TokenType::CloseBracket {
+            let value = self.parse_expr();
+            elements.push(value);
+
+            if self.at().get_token_type() == TokenType::Comma {
+                self.eat();
+            }
+        }
+
+        self.eat();
+
+        ExprWrapper::new(Box::new(ListLiteral {
+            kind: NodeType::List,
+            elements
+        }))
+    }
+
     fn parse_object_expr(&mut self) -> ExprWrapper {
         if self.at().get_token_type() != TokenType::OpenBrace {
             return self.parse_additive_expr();
@@ -339,7 +372,7 @@ impl Parser {
     }
 
     fn parse_comparative_expr(&mut self) -> ExprWrapper {
-        let mut left = self.parse_object_expr();
+        let mut left = self.parse_list_expr();
         
         if !self.not_eof() && !self.at_comparative_expr().is_none() {
             return left;
@@ -352,7 +385,7 @@ impl Parser {
                 operator += &self.eat().value.unwrap()
             }
 
-            let right = self.parse_object_expr();
+            let right = self.parse_list_expr();
 
             left = ExprWrapper::new(Box::new(ComparativeExpr {
                 kind: NodeType::ComparativeExpr,

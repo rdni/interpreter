@@ -2,19 +2,13 @@ use std::sync::{Arc, Mutex};
 
 use crate::fatal_error;
 use crate::runtime::values::{FunctionValue, NullValue, RuntimeValue};
-use crate::frontend::ast::{Expr, FunctionDeclaration, IfStmt, Program, ReturnStmt, VarDeclaration};
+use crate::frontend::ast::{Expr, FunctionDeclaration, IfStmt, Program, ReturnStmt, VarDeclaration, WhileStmt};
 
 use crate::runtime::interpreter::eval;
 use crate::runtime::environment::Environment;
 
 pub fn eval_program(program: Program, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
-    let mut last_evaluated: Box<dyn RuntimeValue> = Box::new(NullValue {});
-
-    for statement in program.body.body {
-        last_evaluated = eval(statement, Arc::clone(&env));
-    }
-    
-    last_evaluated
+    program.body.run(env, false).0
 }
 
 pub fn eval_var_declaration(var_declaration: VarDeclaration, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
@@ -51,13 +45,18 @@ pub fn eval_if(if_stmt: IfStmt, env: Arc<Mutex<Environment>>) -> Box<dyn Runtime
     let condition = eval(if_stmt.condition.to_stmt_from_expr(), Arc::clone(&env));
 
     if condition.as_bool() {
-        for stmt in if_stmt.body.body {
-            eval(stmt, Arc::clone(&env));
-        }
+        if_stmt.body.run(env, true);
     } else if let Some(v) = if_stmt.else_stmt {
-        for stmt in v.body {
-            eval(stmt, Arc::clone(&env));
-        }
+        v.run(env, true);
+    }
+
+    Box::new(NullValue {})
+}
+
+pub fn eval_while(while_stmt: WhileStmt, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    let mut last_env = Arc::clone(&env);
+    while eval(while_stmt.condition.to_stmt_from_expr(), last_env).as_bool() == true {
+        last_env = while_stmt.body.run(Arc::clone(&env), true).1;
     }
 
     Box::new(NullValue {})

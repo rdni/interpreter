@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{fatal_error, MK_NUMBER, MK_STRING};
 use crate::runtime::values::{NumberValue, RuntimeValue};
-use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, FunctionDeclaration, Identifier, IfStmt, MemberExpr, NodeType, ObjectLiteral, Program, ReturnStmt, Stmt, StmtValue, StmtWrapper, VarDeclaration};
+use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, FunctionDeclaration, Identifier, IfStmt, ListLiteral, MemberExpr, NodeType, ObjectLiteral, Program, ReturnStmt, Stmt, StmtValue, StmtWrapper, VarDeclaration, WhileStmt};
 
 use super::environment::Environment;
 use super::values::StringValue;
@@ -34,6 +34,10 @@ pub fn eval(ast_node: StmtWrapper, env: Arc<Mutex<Environment>>) -> Box<dyn Runt
             let object = ast_node.as_any().downcast_ref::<ObjectLiteral>().expect("Failed to downcast to ObjectLiteral.");
             let value = eval_object_expr(object.clone(), Arc::clone(&env));
             value
+        },
+        NodeType::List => {
+            let list = ast_node.as_any().downcast_ref::<ListLiteral>().expect("Failed to downcast to ListLiteral.");
+            eval_list_expr(list.clone(), Arc::clone(&env))
         },
         NodeType::MemberExpr => {
             let member_expr = ast_node.as_any().downcast_ref::<MemberExpr>().expect("Failed to downcast to MemberExpr.");
@@ -68,6 +72,10 @@ pub fn eval(ast_node: StmtWrapper, env: Arc<Mutex<Environment>>) -> Box<dyn Runt
         NodeType::If => {
             let if_stmt = ast_node.as_any().downcast_ref::<IfStmt>().expect("Failed to downcast to IfStmt");
             eval_if(if_stmt.clone(), env)
+        },
+        NodeType::While => {
+            let while_stmt = ast_node.as_any().downcast_ref::<WhileStmt>().expect("Failed to downcast to WhileStmt");
+            eval_while(while_stmt.clone(), env)
         },
         NodeType::Program => {
             let program = ast_node.as_any().downcast_ref::<Program>().expect("Failed to downcast to Program.");

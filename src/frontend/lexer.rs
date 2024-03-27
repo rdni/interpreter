@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fmt::Debug};
 
-use crate::{is_skippable, fatal_error};
+use crate::{fatal_error, is_skippable, is_valid_ident_char, is_valid_ident_char_start};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum TokenType {
@@ -16,6 +16,7 @@ pub enum TokenType {
     Return,
     If,
     Else,
+    While,
 
     Comma,
     Colon,
@@ -63,6 +64,7 @@ impl Tokenizer {
         keywords.insert("return", TokenType::Return);
         keywords.insert("if", TokenType::If);
         keywords.insert("else", TokenType::Else);
+        keywords.insert("while", TokenType::While);
 
         keywords
     }
@@ -159,10 +161,10 @@ impl Tokenizer {
                     }
 
                     token_output.push(Token { value: Some(num), token_type: TokenType::Number });
-                } else if src[0].is_alphabetic() {
+                } else if is_valid_ident_char_start(src[0]) {
                     let mut identifier = String::new();
                     
-                    while src.len() > 0 && (src[0].is_alphabetic() || src[0].is_numeric() || src[0] == '_') {
+                    while src.len() > 0 && (is_valid_ident_char(src[0])) {
                         identifier += &src.remove(0).to_string();
                     }
 

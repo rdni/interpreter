@@ -39,14 +39,32 @@ fn main() {
             //     .read_line(&mut input)
             //     .unwrap();
 
+            let mut debug = false;
+
+            if env.lock().unwrap().variables.get("debug").unwrap().equals(Box::new(MK_BOOL!(true))) {
+                debug = true;
+            }
+
             *env.lock().unwrap() = Environment::new(None);
 
             let ast = program.produce_ast(fs::read_to_string("src/testingfile.txt").unwrap());
-            // println!("AST: {:?}", ast);
+
+            if debug {
+                println!("AST: {:?}", ast);
+            }
             eval(StmtWrapper::new(Box::new(ast)), Arc::clone(&env)).to_string();
         } else {
             let ast = program.produce_ast(input);
-            // println!("AST: {:?}", ast);
+
+            let mut debug = false;
+
+            if env.lock().unwrap().variables.get("debug").unwrap().equals(Box::new(MK_BOOL!(true))) {
+                debug = true;
+            }
+
+            if debug {
+                println!("AST: {:?}", ast);
+            }
             let result = &eval(StmtWrapper::new(Box::new(ast)), Arc::clone(&env)).to_string();
             if result != "null" {
                 println!("{}", result);

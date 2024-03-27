@@ -93,7 +93,11 @@ pub fn to_int(args: Vec<Box<dyn RuntimeValue>>, _env: &Mutex<Environment>) -> Bo
     }
 
     if args[0].get_type() == ValueType::String {
-        return Box::new(NumberValue { value: str::parse::<f64>(&args[0].to_string()).unwrap() });
+        let parsed = match str::parse::<f64>(&args[0].to_string()) {
+            Ok(v) => v,
+            Err(e) => fatal_error(&e.to_string())
+        };
+        return Box::new(NumberValue { value: parsed });
     } else if args[0].get_type() == ValueType::Number {
         return args[0].clone();
     }

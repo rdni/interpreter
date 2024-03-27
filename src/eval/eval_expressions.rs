@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use crate::{error, fatal_error, MK_BOOL, MK_NULL, MK_NUMBER, MK_STRING};
-use crate::runtime::values::{BooleanValue, FunctionValue, NativeFnValue, NullValue, NumberValue, ObjectValue, RuntimeValue, StringValue, ValueType};
-use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, Expr, Identifier, MemberExpr, NodeType, ObjectLiteral, Stmt};
+use crate::runtime::values::{BooleanValue, FunctionValue, ListValue, NativeFnValue, NullValue, NumberValue, ObjectValue, RuntimeValue, StringValue, ValueType};
+use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, Expr, Identifier, ListLiteral, MemberExpr, NodeType, ObjectLiteral, Stmt};
 use crate::runtime::environment::{Environment, SharedEnvironment};
 use crate::runtime::interpreter::eval;
 
@@ -196,26 +196,67 @@ pub fn eval_object_expr(obj: ObjectLiteral, env: Arc<Mutex<Environment>>) -> Box
     return Box::new(object);
 }
 
+pub fn eval_list_expr(list: ListLiteral, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
+    let mut elements = vec![];
+
+    for i in list.elements {
+        elements.push(eval(i.to_stmt_from_expr(), Arc::clone(&env)));
+    }
+
+    Box::new(ListValue {
+        elements
+    })
+}
+
 pub fn eval_member_expr(node: MemberExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
-    let obj = eval(node.object.to_stmt_from_expr(), Arc::clone(&env)).as_any().downcast_ref::<ObjectValue>().unwrap().clone();
-    if !node.computed {
-        if node.property.get_expr_kind() != NodeType::Identifier {
+    let obj = eval(node.object.to_stmt_from_expr(), Arc::clone(&env));
+    if obj.get_type() == ValueType::Object {
+        let obj = obj.as_any().downcast_ref::<ObjectValue>().unwrap().clone();
+        if !node.computed {
+            if node.property.get_expr_kind() != NodeType::Identifier {
+                fatal_error("Unexpected value found in member expression.");
+            }
+            let identifier = node.property.as_any().downcast_ref::<Identifier>().unwrap().clone();
+
+            return obj.properties.get(&identifier.symbol).unwrap().clone();
+        }
+
+        let property = eval(node.property.to_stmt_from_expr(), env);
+
+        if property.get_type() != ValueType::String {
             fatal_error("Unexpected value found in member expression.");
         }
-        let identifier = node.property.as_any().downcast_ref::<Identifier>().unwrap().clone();
 
-        return obj.properties.get(&identifier.symbol).unwrap().clone();
+        let property = property.as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StringValue.");
+
+        obj.properties.get(&property.value).unwrap().clone()
+    } else if obj.get_type() == ValueType::List {
+        if !node.computed {
+            fatal_error("List cannot be indexed like this");
+        }
+
+        let value = eval(node.property.to_stmt_from_expr(), Arc::clone(&env));
+
+        if value.get_type() != ValueType::Number {
+            fatal_error("List can only be indexed by numbers");
+        }
+
+        let index = value.as_any().downcast_ref::<NumberValue>().expect("Failed to downcast to number").value as i32;
+
+        let obj = obj.as_any().downcast_ref::<ListValue>().unwrap().clone();
+
+        if (obj.elements.len() as i32) < index + 1 || index <= -2 {
+            fatal_error("Index out of range");
+        }
+        
+        if index == -1 {
+            return obj.elements.get(obj.elements.len() - 1).unwrap().clone();
+        }
+
+        obj.elements.get(index as usize).unwrap().clone()
+    } else {
+        fatal_error("Invalid member expression");
     }
-
-    let property = eval(node.property.to_stmt_from_expr(), env);
-
-    if property.get_type() != ValueType::String {
-        fatal_error("Unexpected value found in member expression.");
-    }
-
-    let property = property.as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StringValue.");
-
-    obj.properties.get(&property.value).unwrap().clone()
 }
 
 pub fn eval_call(expr: CallExpr, env: Arc<Mutex<Environment>>) -> Box<dyn RuntimeValue> {
