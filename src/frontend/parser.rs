@@ -5,7 +5,7 @@ use crate::frontend::lexer::{Tokenizer, Token, TokenType};
 use crate::*;
 
 
-use super::ast::{Body, IfStmt, ListLiteral, MemberExpr, ReturnStmt, StringLiteral, WhileStmt};
+use super::ast::{Body, ForStmt, IfStmt, ListLiteral, MemberExpr, ReturnStmt, StringLiteral, WhileStmt};
 
 pub struct Parser {
     pub tokens: Vec<Token>
@@ -33,7 +33,6 @@ impl Parser {
     }
 
     fn at_comparative_expr(&self) -> Option<usize> {
-
         let token1 = self.at().get_token_type();
         
         if token1 == TokenType::EOF {
@@ -108,6 +107,7 @@ impl Parser {
             TokenType::Return => Some(self.parse_return()),
             TokenType::If => Some(self.parse_if()),
             TokenType::While => Some(self.parse_while()),
+            TokenType::For => Some(self.parse_for()),
             TokenType::Semicolon => {
                 self.eat();
                 if self.not_eof() && self.at().get_token_type() != TokenType::CloseBrace {
@@ -165,7 +165,25 @@ impl Parser {
         }))
     }
 
-    // for 
+    fn parse_for(&mut self) -> StmtWrapper {
+        self.eat();
+        
+        let variable = self.parse_expr();
+
+        self.eat_expect(TokenType::In, "Expected `in` in for statement", LoggingLevel::Fatal);
+
+        let iterable = self.parse_expr();
+
+        let body = self.parse_body();
+
+        StmtWrapper::new(Box::new(ForStmt {
+            kind: NodeType::For,
+            iterable,
+            variable,
+            body
+        }))
+    }
+
     fn parse_while(&mut self) -> StmtWrapper {
         self.eat();
 
@@ -359,6 +377,14 @@ impl Parser {
 
         match token.get_token_type() {
             TokenType::Identifier => ExprWrapper::new(Box::new(Identifier { kind: NodeType::Identifier, symbol: self.eat().value.unwrap() })),
+            TokenType::BinaryOperator => {
+                if token.value.as_ref().unwrap() == "-" {
+                    self.eat();
+                    ExprWrapper::new(Box::new(NumericLiteral { kind: NodeType::NumericLiteral, value: (String::from("-") + &self.eat().value.unwrap()).parse().expect("Problem converting numeric literal") }))
+                } else {
+                    fatal_error(&format!("Unexpected token found during parsing: {:?}", self.at()));
+                }
+            },
             TokenType::Number => ExprWrapper::new(Box::new(NumericLiteral { kind: NodeType::NumericLiteral, value: self.eat().value.unwrap().parse().expect("Problem converting numeric literal") })),
             TokenType::String => ExprWrapper::new(Box::new(StringLiteral { kind: NodeType::String, string: self.eat().value.unwrap()})),
             TokenType::OpenParen => {

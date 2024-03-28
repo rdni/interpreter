@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{fatal_error, MK_NUMBER, MK_STRING};
 use crate::runtime::values::{NumberValue, RuntimeValue};
-use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, FunctionDeclaration, Identifier, IfStmt, ListLiteral, MemberExpr, NodeType, ObjectLiteral, Program, ReturnStmt, Stmt, StmtValue, StmtWrapper, VarDeclaration, WhileStmt};
+use crate::frontend::ast::{AssignmentExpr, BinaryExpr, CallExpr, ComparativeExpr, ForStmt, FunctionDeclaration, Identifier, IfStmt, ListLiteral, MemberExpr, NodeType, ObjectLiteral, Program, ReturnStmt, Stmt, StmtValue, StmtWrapper, VarDeclaration, WhileStmt};
 
 use super::environment::Environment;
 use super::values::StringValue;
@@ -77,6 +77,10 @@ pub fn eval(ast_node: StmtWrapper, env: Arc<Mutex<Environment>>) -> Box<dyn Runt
             let while_stmt = ast_node.as_any().downcast_ref::<WhileStmt>().expect("Failed to downcast to WhileStmt");
             eval_while(while_stmt.clone(), env)
         },
+        NodeType::For => {
+            let for_stmt = ast_node.as_any().downcast_ref::<ForStmt>().expect("Failed to downcast to ForStmt");
+            eval_for(for_stmt.clone(), env)
+        }
         NodeType::Program => {
             let program = ast_node.as_any().downcast_ref::<Program>().expect("Failed to downcast to Program.");
             eval_program(program.clone(), env)

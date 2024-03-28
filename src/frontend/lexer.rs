@@ -12,11 +12,16 @@ pub enum TokenType {
 
     Var,
     Const,
+
     Function,
     Return,
+
     If,
     Else,
+
     While,
+    For,
+    In,
 
     Comma,
     Colon,
@@ -65,6 +70,8 @@ impl Tokenizer {
         keywords.insert("if", TokenType::If);
         keywords.insert("else", TokenType::Else);
         keywords.insert("while", TokenType::While);
+        keywords.insert("for", TokenType::For);
+        keywords.insert("in", TokenType::In);
 
         keywords
     }

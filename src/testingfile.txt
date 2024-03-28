@@ -1,30 +1,5 @@
-print("A Basic Calculator");
+var iter = [1, 2, 4, 2, 4];
 
-var continue = true;
-while continue {
-    const num1 = int(input("Enter number 1: "));
-    const num2 = int(input("Enter number 2: "));
-    const operator = input("Enter operator: ");
-
-    var answer;
-    if operator == "+" {
-        answer = num1 + num2;
-    } else if operator == "-" {
-        answer = num1 - num2;
-    } else if operator == "*" {
-        answer = num1 * num2;
-    } else if operator == "/" {
-        answer = num1 / num2;
-    } else {
-        print("Invalid operator");
-        exit();
-    }
-
-    print("The answer is " + answer + ".");
-
-    if input("Continue? (Y/n)") == "n" {
-        continue = false;
-    }
+for i in iter {
+    print(i);
 }
-
-print("Done");

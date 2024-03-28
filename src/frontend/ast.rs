@@ -9,10 +9,15 @@ pub enum NodeType {
 
     // Statements
     VarDeclaration,
+
     FunctionDeclaration,
+
     Return,
+
     If,
+
     While,
+    For,
 
     // Expressions
     Identifier,
@@ -782,6 +787,32 @@ pub struct WhileStmt {
 }
 
 impl Stmt for WhileStmt {
+    fn get_kind(&self) -> NodeType {
+        self.kind
+    }
+    fn get_value(&self) -> Option<StmtValue> {
+        None
+    }
+    fn clone_boxed(&self) -> Box<dyn Stmt> {
+        Box::new(self.clone())
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn clone_as_wrapper(&self) -> StmtWrapper {
+        StmtWrapper::new(self.clone_boxed())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct ForStmt {
+    pub kind: NodeType,
+    pub iterable: ExprWrapper,
+    pub variable: ExprWrapper,
+    pub body: Body
+}
+
+impl Stmt for ForStmt {
     fn get_kind(&self) -> NodeType {
         self.kind
     }

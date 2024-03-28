@@ -102,7 +102,9 @@ impl SharedEnvironment {
         } else {
             let mut parent = SharedEnvironment(match &inner.lock().unwrap().parent {
                 Some(v) => Arc::clone(&v),
-                None => fatal_error(&format!("Error resolving variable {}", varname))
+                None => {
+                    fatal_error(&format!("Error resolving variable {}", varname))
+                }
             });
             parent.resolve(varname)
         }
@@ -114,8 +116,14 @@ impl SharedEnvironment {
         x
     }
 
-    pub fn assign_var(&mut self , varname: String, value: Box<dyn RuntimeValue>) -> Box<dyn RuntimeValue> {
-        let env = self.resolve(&varname);
+    pub fn assign_var(&mut self, varname: String, value: Box<dyn RuntimeValue>, bypass: bool) -> Box<dyn RuntimeValue> {
+        let env;
+        if bypass {
+            env = Arc::clone(&self.0);
+        } else {
+            env = self.resolve(&varname);
+        }
+
 
         let is_constant = env.lock().unwrap().get_constants().contains(&varname);
 

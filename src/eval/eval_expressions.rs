@@ -155,26 +155,53 @@ pub fn eval_assignment(node: AssignmentExpr, env: Arc<Mutex<Environment>>) -> Bo
         NodeType::Identifier => {
             let identifier = node.assignee.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone();
             let value = eval(node.value.to_stmt_from_expr(), Arc::clone(&env));
-            shared_env.assign_var(identifier.symbol, value)
+            shared_env.assign_var(identifier.symbol, value, false)
         },
         NodeType::MemberExpr => {
             let member_expr = node.assignee.as_any().downcast_ref::<MemberExpr>().expect("Failed to downcast to MemberExpr.").clone();
+
             let object_identifier = member_expr.object.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone();
-            let property;
+            let obj = shared_env.lookup_var(object_identifier.symbol.clone());
+            
+            if obj.get_type() == ValueType::Object {
+                let mut obj = obj.as_any().downcast_ref::<ObjectValue>().unwrap().clone();
+                let property;
 
-            if member_expr.property.get_kind() == NodeType::Identifier {
-                property = member_expr.property.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone().symbol;
-            } else if member_expr.property.get_kind() == NodeType::String {
-                property = eval(member_expr.property.to_stmt_from_expr(), Arc::clone(&env)).as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StrinvValue.").clone().value;
+                if member_expr.property.get_kind() == NodeType::Identifier {
+                    property = member_expr.property.as_any().downcast_ref::<Identifier>().expect("Failed to downcast to Identifier.").clone().symbol;
+                } else if member_expr.property.get_kind() == NodeType::String {
+                    property = eval(member_expr.property.to_stmt_from_expr(), Arc::clone(&env)).as_any().downcast_ref::<StringValue>().expect("Failed to downcast to StrinvValue.").clone().value;
+                } else {
+                    fatal_error("Unexpected value in member assignment expr");
+                }
+
+                let value = eval(node.value.to_stmt_from_expr(), Arc::clone(&env));
+
+                obj.properties.insert(property, value);
+                shared_env.assign_var(object_identifier.symbol, Box::new(obj), false)
+            } else if obj.get_type() == ValueType::List {
+                let mut obj = obj.as_any().downcast_ref::<ListValue>().unwrap().clone();
+                let property = eval(member_expr.property.to_stmt_from_expr(), Arc::clone(&env)).as_any().downcast_ref::<NumberValue>().expect("Expected number when indexing list").clone();
+
+                let value = eval(node.value.to_stmt_from_expr(), env);
+
+                let len = obj.elements.len();
+                if len < (property.value + 1.0) as usize {
+                    fatal_error("Index out of range.");
+                } else if len > 0 {
+                    if property.value == -1.0 {
+                        obj.elements[len - 1] = value;
+                    } else if property.value >= 0.0 {
+                        obj.elements[property.value as usize] = value;
+                    }
+                } else {
+                    fatal_error("Index out of range.")
+                }
+
+                shared_env.assign_var(object_identifier.symbol, Box::new(obj), false)
             } else {
-                fatal_error("Unexpected value in member assignment expr");
+                fatal_error(&format!("Invalid assignment expr: {:?}", node));
             }
-
-            let value = eval(node.value.to_stmt_from_expr(), Arc::clone(&env));
-            let mut obj = shared_env.lookup_var(object_identifier.symbol.clone()).as_any().downcast_ref::<ObjectValue>().expect("Failed to downcast to ObjectValue.").clone();
-
-            obj.properties.insert(property, value);
-            shared_env.assign_var(object_identifier.symbol, Box::new(obj))
         },
         _ => {
             fatal_error(&format!("Invalid LHS inside assignment expression: {:?}", node.assignee));
